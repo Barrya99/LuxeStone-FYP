@@ -1,15 +1,18 @@
 // src/components/products/SettingCard.jsx
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Eye, ShoppingCart, ArrowLeftRight } from 'lucide-react';
 import { formatPrice } from '../../utils/formatters';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { useCartStore } from '../../store/useCartStore';
+import { useComparisonStore } from '../../store/useComparisonStore';
 import Button from '../common/Button';
 import toast from 'react-hot-toast';
 
 const SettingCard = ({ setting }) => {
+  const navigate = useNavigate();
   const { addFavorite, removeFavorite, isFavorite } = useFavoritesStore();
   const { addItem } = useCartStore();
+  const { addSetting } = useComparisonStore();
 
   const handleToggleFavorite = (e) => {
     e.preventDefault();
@@ -41,6 +44,26 @@ const SettingCard = ({ setting }) => {
       ...setting,
     });
     toast.success('Added to cart');
+  };
+
+  const handleCompare = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const success = addSetting(setting);
+    if (success) {
+      toast.success('Added to comparison');
+      navigate('/comparison');
+    } else {
+      const { settings } = useComparisonStore.getState();
+      if (settings.some(s => s.setting_id === setting.setting_id)) {
+        toast.error('Already in comparison');
+      } else if (settings.length >= 3) {
+        toast.error('Maximum 3 items can be compared');
+      } else {
+        toast.error('Cannot add to comparison');
+      }
+    }
   };
 
   return (
@@ -133,16 +156,16 @@ const SettingCard = ({ setting }) => {
           </div>
           
           <div className="flex gap-2">
-            <Link 
-              to={`/comparison?settings=${setting.setting_id}`}
-              onClick={(e) => e.stopPropagation()}
-              className="flex-1"
+            <Button 
+              size="sm" 
+              variant="outline" 
+              fullWidth 
+              title="Compare"
+              onClick={handleCompare}
             >
-              <Button size="sm" variant="outline" fullWidth title="Compare">
-                <ArrowLeftRight className="h-4 w-4" />
-                Compare
-              </Button>
-            </Link>
+              <ArrowLeftRight className="h-4 w-4" />
+              Compare
+            </Button>
             <Button size="sm" fullWidth className="group/btn">
               <Eye className="h-4 w-4" />
               View

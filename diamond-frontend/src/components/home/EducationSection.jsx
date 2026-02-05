@@ -2,8 +2,11 @@
 import { BookOpen, Video, MessageCircle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Button from '../common/Button';
+import { useChatbotStore } from '../../store/useChatbotStore';
 
 const EducationSection = () => {
+  const { openChatbot } = useChatbotStore();
+  
   const resources = [
     {
       icon: BookOpen,
@@ -107,11 +110,14 @@ const EducationSection = () => {
                   Talk to an Expert
                 </Button>
               </Link>
-              <Link to="/configurator">
-                <Button size="lg" variant="secondary" className="bg-white text-gray-900 hover:bg-gray-100">
-                  Try Our AI Assistant
-                </Button>
-              </Link>
+              <Button 
+                size="lg" 
+                variant="secondary" 
+                className="bg-white text-gray-900 hover:bg-gray-100"
+                onClick={openChatbot}
+              >
+                Try Our AI Assistant
+              </Button>
             </div>
           </div>
         </div>

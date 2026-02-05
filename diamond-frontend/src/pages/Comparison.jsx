@@ -1,74 +1,72 @@
 // src/pages/Comparison.jsx
-import { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { X, ShoppingCart, Eye, Plus, Sparkles } from 'lucide-react';
-import { diamondAPI, settingAPI } from '../services/api';
-import { formatPrice, formatCarat, getCutBadge, getColorBadge } from '../utils/formatters';
-import { useCartStore } from '../store/useCartStore';
-import Button from '../components/common/Button';
-import Loading from '../components/common/Loading';
-import toast from 'react-hot-toast';
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  X,
+  ShoppingCart,
+  Eye,
+  Plus,
+  Sparkles,
+  AlertCircle,
+} from "lucide-react";
+import {
+  formatPrice,
+  formatCarat,
+  getCutBadge,
+  getColorBadge,
+} from "../utils/formatters";
+import { useCartStore } from "../store/useCartStore";
+import { useComparisonStore } from "../store/useComparisonStore";
+import Button from "../components/common/Button";
+import Loading from "../components/common/Loading";
+import toast from "react-hot-toast";
 
 const Comparison = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const { addItem } = useCartStore();
-
-  // Get IDs from URL params
-  const diamondIds = searchParams.get('diamonds')?.split(',').filter(Boolean) || [];
-  const settingIds = searchParams.get('settings')?.split(',').filter(Boolean) || [];
+  const { diamonds, settings, removeDiamond, removeSetting, canRemove } =
+    useComparisonStore();
 
   useEffect(() => {
-    fetchItems();
-  }, []);
-
-  const fetchItems = async () => {
-    try {
-      setLoading(true);
-      const fetchedItems = [];
-
-      // Fetch diamonds
-      for (const id of diamondIds.slice(0, 3)) {
-        try {
-          const response = await diamondAPI.getById(id);
-          fetchedItems.push({ ...response.data, itemType: 'diamond' });
-        } catch (error) {
-          console.error(`Error fetching diamond ${id}:`, error);
-        }
-      }
-
-      // Fetch settings
-      for (const id of settingIds.slice(0, 3)) {
-        try {
-          const response = await settingAPI.getById(id);
-          fetchedItems.push({ ...response.data, itemType: 'setting' });
-        } catch (error) {
-          console.error(`Error fetching setting ${id}:`, error);
-        }
-      }
-
-      setItems(fetchedItems);
-    } catch (error) {
-      console.error('Error fetching comparison items:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Convert store items to comparison format
+    const comparisonItems = [
+      ...diamonds.map((d) => ({ ...d, itemType: "diamond" })),
+      ...settings.map((s) => ({ ...s, itemType: "setting" })),
+    ];
+    setItems(comparisonItems);
+    setLoading(false);
+  }, [diamonds, settings]);
 
   const handleRemoveItem = (index) => {
-    setItems(prev => prev.filter((_, i) => i !== index));
+    const item = items[index];
+
+    // Prevent removing if only 2 items left (need at least 2 for comparison)
+    if (items.length <= 2) {
+      toast.error("You need at least 2 items to compare");
+      return;
+    }
+
+    if (item.itemType === "diamond") {
+      removeDiamond(item.diamond_id);
+      toast.success("Removed from comparison");
+    } else {
+      removeSetting(item.setting_id);
+      toast.success("Removed from comparison");
+    }
   };
 
   const handleAddToCart = (item) => {
     addItem({
       type: item.itemType,
-      ...(item.itemType === 'diamond' ? { diamond_id: item.diamond_id } : { setting_id: item.setting_id }),
+      ...(item.itemType === "diamond"
+        ? { diamond_id: item.diamond_id }
+        : { setting_id: item.setting_id }),
       total_price: item.base_price,
       ...item,
     });
-    toast.success('Added to cart');
+    toast.success("Added to cart");
   };
 
   if (loading) return <Loading fullScreen />;
@@ -87,14 +85,17 @@ const Comparison = () => {
             No Items to Compare
           </h2>
           <p className="text-gray-600 mb-8">
-            Add items to comparison from diamond or setting detail pages.
+            Add at least 2 items to comparison from diamond or setting pages to
+            start comparing.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link to="/diamonds">
               <Button size="lg">Browse Diamonds</Button>
             </Link>
             <Link to="/settings">
-              <Button size="lg" variant="secondary">Browse Settings</Button>
+              <Button size="lg" variant="secondary">
+                Browse Settings
+              </Button>
             </Link>
           </div>
         </div>
@@ -102,32 +103,103 @@ const Comparison = () => {
     );
   }
 
+  // Warning if only 1 item (need at least 2 for comparison)
+  if (items.length === 1) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-8 text-center">
+            <div className="mb-4">
+              <AlertCircle className="h-16 w-16 text-yellow-600 mx-auto" />
+            </div>
+            <h2 className="font-display text-2xl font-bold text-gray-900 mb-4">
+              Add Another Item to Compare
+            </h2>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              You need at least 2 items to compare. Add another{" "}
+              {items[0]?.itemType === "diamond" ? "diamond" : "setting"} to
+              start comparing.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                to={
+                  items[0]?.itemType === "diamond" ? "/diamonds" : "/settings"
+                }
+              >
+                <Button size="lg">
+                  <Plus className="h-5 w-5" />
+                  Add {items[0]?.itemType === "diamond" ? "Diamond" : "Setting"}
+                </Button>
+              </Link>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => {
+                  if (items[0]?.itemType === "diamond") {
+                    removeDiamond(items[0].diamond_id);
+                  } else {
+                    removeSetting(items[0].setting_id);
+                  }
+                  navigate("/");
+                }}
+              >
+                Clear Comparison
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Get comparison attributes based on item type
-  const isDiamondComparison = items[0]?.itemType === 'diamond';
+  const isDiamondComparison = items[0]?.itemType === "diamond";
 
   const diamondAttributes = [
-    { key: 'carat', label: 'Carat Weight', format: (val) => formatCarat(val) },
-    { key: 'shape', label: 'Shape' },
-    { key: 'cut', label: 'Cut Grade' },
-    { key: 'color', label: 'Color Grade' },
-    { key: 'clarity', label: 'Clarity Grade' },
-    { key: 'table_percent', label: 'Table %', format: (val) => val ? `${val}%` : 'N/A' },
-    { key: 'depth_percent', label: 'Depth %', format: (val) => val ? `${val}%` : 'N/A' },
-    { key: 'polish', label: 'Polish', format: (val) => val || 'N/A' },
-    { key: 'symmetry', label: 'Symmetry', format: (val) => val || 'N/A' },
-    { key: 'fluorescence', label: 'Fluorescence', format: (val) => val || 'None' },
-    { key: 'certificate_type', label: 'Certificate', format: (val) => val || 'IGI' },
+    { key: "carat", label: "Carat Weight", format: (val) => formatCarat(val) },
+    { key: "shape", label: "Shape" },
+    { key: "cut", label: "Cut Grade" },
+    { key: "color", label: "Color Grade" },
+    { key: "clarity", label: "Clarity Grade" },
+    {
+      key: "table_percent",
+      label: "Table %",
+      format: (val) => (val ? `${val}%` : "N/A"),
+    },
+    {
+      key: "depth_percent",
+      label: "Depth %",
+      format: (val) => (val ? `${val}%` : "N/A"),
+    },
+    { key: "polish", label: "Polish", format: (val) => val || "N/A" },
+    { key: "symmetry", label: "Symmetry", format: (val) => val || "N/A" },
+    {
+      key: "fluorescence",
+      label: "Fluorescence",
+      format: (val) => val || "None",
+    },
+    {
+      key: "certificate_type",
+      label: "Certificate",
+      format: (val) => val || "IGI",
+    },
   ];
 
   const settingAttributes = [
-    { key: 'style_type', label: 'Style' },
-    { key: 'metal_type', label: 'Metal Type' },
-    { key: 'min_carat', label: 'Min Carat', format: (val) => `${val}ct` },
-    { key: 'max_carat', label: 'Max Carat', format: (val) => `${val}ct` },
-    { key: 'popularity_score', label: 'Popularity', format: (val) => `${val}/100` },
+    { key: "style_type", label: "Style" },
+    { key: "metal_type", label: "Metal Type" },
+    { key: "min_carat", label: "Min Carat", format: (val) => `${val}ct` },
+    { key: "max_carat", label: "Max Carat", format: (val) => `${val}ct` },
+    {
+      key: "popularity_score",
+      label: "Popularity",
+      format: (val) => `${val}/100`,
+    },
   ];
 
-  const attributes = isDiamondComparison ? diamondAttributes : settingAttributes;
+  const attributes = isDiamondComparison
+    ? diamondAttributes
+    : settingAttributes;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -137,14 +209,15 @@ const Comparison = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="font-display text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-                Compare {isDiamondComparison ? 'Diamonds' : 'Settings'}
+                Compare {isDiamondComparison ? "Diamonds" : "Settings"}
               </h1>
               <p className="text-gray-600">
-                Compare up to 3 items side-by-side
+                Compare {items.length} {items.length === 1 ? "item" : "items"}{" "}
+                side-by-side {items.length < 3 && "(add up to 3)"}
               </p>
             </div>
-            <Link to={isDiamondComparison ? '/diamonds' : '/settings'}>
-              <Button variant="outline">
+            <Link to={isDiamondComparison ? "/diamonds" : "/settings"}>
+              <Button variant="outline" disabled={items.length >= 3}>
                 <Plus className="h-5 w-5" />
                 Add More
               </Button>
@@ -166,13 +239,24 @@ const Comparison = () => {
                   {items.map((item, index) => (
                     <th key={index} className="px-6 py-4 min-w-[280px]">
                       <div className="relative">
-                        {/* Remove Button */}
-                        <button
-                          onClick={() => handleRemoveItem(index)}
-                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        {/* Remove Button - Only show if more than 2 items */}
+                        {items.length > 2 && (
+                          <button
+                            onClick={() => handleRemoveItem(index)}
+                            className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors z-10"
+                            title="Remove from comparison"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                        {items.length === 2 && (
+                          <div
+                            className="absolute -top-2 -right-2 p-1 bg-gray-300 text-gray-500 rounded-full cursor-not-allowed z-10"
+                            title="Need at least 2 items to compare"
+                          >
+                            <X className="h-4 w-4" />
+                          </div>
+                        )}
 
                         {/* Item Preview */}
                         <div className="bg-gradient-to-br from-primary-50 to-blue-50 rounded-lg p-4 mb-4">
@@ -185,8 +269,7 @@ const Comparison = () => {
                         <h3 className="font-display font-bold text-gray-900 mb-2">
                           {isDiamondComparison
                             ? `${formatCarat(item.carat)} ${item.shape}`
-                            : item.name
-                          }
+                            : item.name}
                         </h3>
 
                         {/* Price */}
@@ -197,9 +280,10 @@ const Comparison = () => {
                         {/* Actions */}
                         <div className="flex gap-2">
                           <Link
-                            to={isDiamondComparison
-                              ? `/diamonds/${item.diamond_id}`
-                              : `/settings/${item.setting_id}`
+                            to={
+                              isDiamondComparison
+                                ? `/diamonds/${item.diamond_id}`
+                                : `/settings/${item.setting_id}`
                             }
                             className="flex-1"
                           >
@@ -220,14 +304,23 @@ const Comparison = () => {
                       </div>
                     </th>
                   ))}
-                  
+
                   {/* Add placeholder for empty slots */}
                   {[...Array(3 - items.length)].map((_, index) => (
-                    <th key={`empty-${index}`} className="px-6 py-4 min-w-[280px]">
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                        <Plus className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">Add item to compare</p>
-                      </div>
+                    <th
+                      key={`empty-${index}`}
+                      className="px-6 py-4 min-w-[280px]"
+                    >
+                      <Link
+                        to={isDiamondComparison ? "/diamonds" : "/settings"}
+                      >
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-400 hover:bg-primary-50 transition-colors cursor-pointer">
+                          <Plus className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                          <p className="text-sm text-gray-500">
+                            Add item to compare
+                          </p>
+                        </div>
+                      </Link>
                     </th>
                   ))}
                 </tr>
@@ -256,30 +349,44 @@ const Comparison = () => {
                   <tr
                     key={attr.key}
                     className={`border-b border-gray-200 ${
-                      attrIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                      attrIndex % 2 === 0 ? "bg-white" : "bg-gray-50"
                     }`}
                   >
-                    <td className={`sticky left-0 px-6 py-4 font-medium text-gray-700 ${
-                      attrIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                    }`}>
+                    <td
+                      className={`sticky left-0 px-6 py-4 font-medium text-gray-700 ${
+                        attrIndex % 2 === 0 ? "bg-white" : "bg-gray-50"
+                      }`}
+                    >
                       {attr.label}
                     </td>
                     {items.map((item, index) => {
                       const value = item[attr.key];
-                      const formattedValue = attr.format ? attr.format(value) : value;
-                      
+                      const formattedValue = attr.format
+                        ? attr.format(value)
+                        : value;
+
                       return (
                         <td key={index} className="px-6 py-4 text-center">
-                          {attr.key === 'cut' ? (
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCutBadge(value)}`}>
+                          {attr.key === "cut" ? (
+                            <span
+                              className={`px-3 py-1 rounded-full text-sm font-medium ${getCutBadge(
+                                value
+                              )}`}
+                            >
                               {formattedValue}
                             </span>
-                          ) : attr.key === 'color' ? (
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getColorBadge(value)}`}>
+                          ) : attr.key === "color" ? (
+                            <span
+                              className={`px-3 py-1 rounded-full text-sm font-medium ${getColorBadge(
+                                value
+                              )}`}
+                            >
                               {formattedValue}
                             </span>
                           ) : (
-                            <span className="text-gray-900">{formattedValue || 'N/A'}</span>
+                            <span className="text-gray-900">
+                              {formattedValue || "N/A"}
+                            </span>
                           )}
                         </td>
                       );
@@ -303,9 +410,10 @@ const Comparison = () => {
             <div className="inline-flex items-center gap-2 px-6 py-3 bg-gold-100 text-gold-800 rounded-full font-medium">
               <span className="text-2xl">🏆</span>
               {isDiamondComparison
-                ? `${formatCarat(items[0].carat)} ${items[0].shape} - ${formatPrice(items[0].base_price)}`
-                : `${items[0].name} - ${formatPrice(items[0].base_price)}`
-              }
+                ? `${formatCarat(items[0].carat)} ${
+                    items[0].shape
+                  } - ${formatPrice(items[0].base_price)}`
+                : `${items[0].name} - ${formatPrice(items[0].base_price)}`}
             </div>
           </div>
         )}

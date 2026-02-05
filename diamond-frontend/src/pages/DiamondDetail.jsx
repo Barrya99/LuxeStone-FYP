@@ -3,13 +3,14 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Heart, ShoppingCart, Share2, Award, Shield, 
-  Sparkles, ArrowLeft, CheckCircle, Info
+  Sparkles, ArrowLeft, CheckCircle, Info, ArrowLeftRight
 } from 'lucide-react';
 import { diamondAPI, reviewAPI } from '../services/api';
 import { formatPrice, formatCarat, getCutBadge, getColorBadge } from '../utils/formatters';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useCartStore } from '../store/useCartStore';
 import { useConfiguratorStore } from '../store/useConfiguratorStore';
+import { useComparisonStore } from '../store/useComparisonStore';
 import Button from '../components/common/Button';
 import Loading from '../components/common/Loading';
 import toast from 'react-hot-toast';
@@ -25,6 +26,7 @@ const DiamondDetail = () => {
   const { addFavorite, removeFavorite, isFavorite } = useFavoritesStore();
   const { addItem } = useCartStore();
   const { selectDiamond } = useConfiguratorStore();
+  const { addDiamond } = useComparisonStore();
 
   useEffect(() => {
     fetchDiamond();
@@ -83,6 +85,23 @@ const DiamondDetail = () => {
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success('Link copied to clipboard!');
+  };
+
+  const handleCompare = () => {
+    const success = addDiamond(diamond);
+    if (success) {
+      toast.success('Added to comparison');
+      navigate('/comparison');
+    } else {
+      const { diamonds } = useComparisonStore.getState();
+      if (diamonds.some(d => d.diamond_id === diamond.diamond_id)) {
+        toast.error('Already in comparison');
+      } else if (diamonds.length >= 3) {
+        toast.error('Maximum 3 items can be compared');
+      } else {
+        toast.error('Cannot add to comparison');
+      }
+    }
   };
 
   if (loading) return <Loading fullScreen />;
@@ -225,6 +244,10 @@ const DiamondDetail = () => {
               <Button size="lg" variant="secondary" onClick={handleAddToCart} className="flex-1">
                 <ShoppingCart className="h-5 w-5" />
                 Add to Cart
+              </Button>
+              <Button size="lg" variant="outline" onClick={handleCompare}>
+                <ArrowLeftRight className="h-5 w-5" />
+                Compare
               </Button>
               <Button
                 size="lg"

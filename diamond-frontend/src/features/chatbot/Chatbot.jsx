@@ -2,9 +2,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Sparkles, Loader } from 'lucide-react';
 import Button from '../../components/common/Button';
+import { useChatbotStore } from '../../store/useChatbotStore';
 
 const Chatbot = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isOpen, closeChatbot, openChatbot } = useChatbotStore();
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -97,7 +98,7 @@ const Chatbot = () => {
       {/* Chat Button */}
       {!isOpen && (
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={openChatbot}
           className="fixed bottom-6 right-6 z-50 p-4 bg-primary-600 text-white rounded-full shadow-2xl hover:bg-primary-700 transition-all hover:scale-110 group"
         >
           <MessageCircle className="h-6 w-6" />
@@ -126,7 +127,7 @@ const Chatbot = () => {
               </div>
             </div>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={closeChatbot}
               className="p-1 hover:bg-white/20 rounded-lg transition-colors"
             >
               <X className="h-5 w-5" />
