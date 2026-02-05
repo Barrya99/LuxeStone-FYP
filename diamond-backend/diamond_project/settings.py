@@ -11,12 +11,12 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-your-secret-key-here-change-this-in-production'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-your-secret-key-here-change-this-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*']  # Allow all hosts for now (you can restrict later)
 
 # Application definition
 INSTALLED_APPS = [
@@ -133,7 +133,14 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite default port
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
+    "https://jewelary-websitefyp.onrender.com",  # Render backend (for admin/testing)
+    # Add your Vercel frontend URL here after deployment:
+    # "https://your-app.vercel.app",
 ]
+
+# Allow all origins in development (for testing)
+# In production, restrict to specific domains above
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all in DEBUG mode
 
 CORS_ALLOW_CREDENTIALS = True
 
