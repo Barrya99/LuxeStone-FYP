@@ -1,4 +1,3 @@
-// src/pages/Configurator.jsx
 import { useEffect } from 'react';
 import { useConfiguratorStore } from '../store/useConfiguratorStore';
 import ProgressStepper from '../components/configurator/ProgressStepper';

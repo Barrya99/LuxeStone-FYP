@@ -1,4 +1,3 @@
-// src/components/home/FeaturedProducts.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Heart, Eye } from 'lucide-react';

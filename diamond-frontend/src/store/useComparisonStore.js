@@ -1,4 +1,3 @@
-// src/store/useComparisonStore.js
 import { create } from 'zustand';
 
 export const useComparisonStore = create((set, get) => ({

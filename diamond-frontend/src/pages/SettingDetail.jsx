@@ -1,4 +1,3 @@
-// src/pages/SettingDetail.jsx
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 

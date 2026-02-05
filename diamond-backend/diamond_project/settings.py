@@ -134,7 +134,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
     "https://jewelary-websitefyp.onrender.com", 
-    "https://jewelary-website-fyp.vercel.app/",
+    "https://jewelary-website-fyp.vercel.app",
      # Render backend (for admin/testing)
     # Add your Vercel frontend URL here after deployment:
     # "https://your-app.vercel.app",

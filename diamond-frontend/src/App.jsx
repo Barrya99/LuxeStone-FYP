@@ -1,9 +1,9 @@
-// src/App.jsx
+
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Layout from './components/layout/Layout';
 
-// Pages
+
 import Home from './pages/Home';
 import BrowseDiamonds from './pages/BrowseDiamonds';
 import BrowseSettings from './pages/BrowseSettings';
@@ -16,8 +16,7 @@ import Checkout from './pages/Checkout';
 import Account from './pages/Account';
 import Chatbot from './features/chatbot/Chatbot';
 
-// Features
-// import Chatbot from './features/chatbot/Chatbot';
+
 
 function App() {
   return (

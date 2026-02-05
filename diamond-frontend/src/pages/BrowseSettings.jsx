@@ -1,4 +1,3 @@
-// src/pages/BrowseSettings.jsx
 import { useState, useEffect } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { settingAPI } from '../services/api';

@@ -1,4 +1,3 @@
-// src/components/products/SettingCard.jsx
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Eye, ShoppingCart, ArrowLeftRight } from 'lucide-react';
 import { formatPrice } from '../../utils/formatters';

@@ -1,5 +1,3 @@
-// src/components/common/Loading.jsx
-
 const Loading = ({ size = 'md', fullScreen = false }) => {
   const sizes = {
     sm: 'h-8 w-8',

@@ -1,4 +1,3 @@
-// src/features/chatbot/Chatbot.jsx
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Sparkles, Loader } from 'lucide-react';
 import Button from '../../components/common/Button';

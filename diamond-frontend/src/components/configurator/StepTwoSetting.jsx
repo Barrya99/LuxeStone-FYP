@@ -1,4 +1,3 @@
-// src/components/configurator/StepTwoSetting.jsx
 import { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { settingAPI } from '../../services/api';

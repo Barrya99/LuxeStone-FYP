@@ -1,4 +1,3 @@
-// src/pages/Checkout.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, Lock, CheckCircle } from 'lucide-react';

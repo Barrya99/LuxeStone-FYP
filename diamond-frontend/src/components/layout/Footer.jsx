@@ -1,4 +1,3 @@
-// src/components/layout/Footer.jsx
 import { Link } from 'react-router-dom';
 import { Gem, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Youtube } from 'lucide-react';
 

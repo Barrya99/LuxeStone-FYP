@@ -1,4 +1,3 @@
-// src/store/useFavoritesStore.js
 import { create } from 'zustand';
 
 export const useFavoritesStore = create((set, get) => ({

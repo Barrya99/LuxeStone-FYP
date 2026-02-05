@@ -1,4 +1,3 @@
-// src/components/products/DiamondCard.jsx
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Eye, ShoppingCart, ArrowLeftRight } from 'lucide-react';
 import { formatPrice, formatCarat, getCutBadge, getColorBadge } from '../../utils/formatters';

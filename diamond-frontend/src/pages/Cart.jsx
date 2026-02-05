@@ -1,4 +1,3 @@
-// src/pages/Cart.jsx
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, ShoppingBag, ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';

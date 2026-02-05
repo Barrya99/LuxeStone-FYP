@@ -1,5 +1,3 @@
-// src/utils/formatters.js
-
 /**
  * Format price to currency
  */

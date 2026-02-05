@@ -1,4 +1,3 @@
-// src/pages/Home.jsx
 import { useEffect } from 'react';
 import HeroSection from '../components/home/HeroSection';
 import FeaturesSection from '../components/home/FeaturesSection';

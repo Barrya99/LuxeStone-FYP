@@ -1,4 +1,3 @@
-// src/components/home/FeaturesSection.jsx
 import { Sparkles, Shield, Truck, RefreshCw, MessageCircle, Award } from 'lucide-react';
 
 const FeaturesSection = () => {

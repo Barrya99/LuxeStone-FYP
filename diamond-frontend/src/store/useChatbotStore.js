@@ -1,4 +1,3 @@
-// src/store/useChatbotStore.js
 import { create } from 'zustand';
 
 export const useChatbotStore = create((set) => ({

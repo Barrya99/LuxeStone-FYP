@@ -1,4 +1,3 @@
-// src/pages/BrowseDiamonds.jsx
 import { useState, useEffect } from 'react';
 import { Filter, Grid, List, SlidersHorizontal, X } from 'lucide-react';
 import { diamondAPI } from '../services/api';

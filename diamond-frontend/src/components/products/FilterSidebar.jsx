@@ -1,4 +1,3 @@
-// src/components/products/FilterSidebar.jsx
 import { useState } from 'react';
 import { X, ChevronDown, ChevronUp } from 'lucide-react';
 import { 

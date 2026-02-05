@@ -1,4 +1,3 @@
-// src/store/useConfiguratorStore.js
 import { create } from 'zustand';
 
 export const useConfiguratorStore = create((set, get) => ({

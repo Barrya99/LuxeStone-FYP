@@ -1,5 +1,3 @@
-// src/utils/constants.js
-
 export const DIAMOND_SHAPES = [
   { value: 'Round', label: 'Round', icon: '⬤' },
   { value: 'Princess', label: 'Princess', icon: '◆' },

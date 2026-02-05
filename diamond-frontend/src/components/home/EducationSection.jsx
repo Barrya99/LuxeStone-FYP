@@ -1,4 +1,3 @@
-// src/components/home/EducationSection.jsx
 import { BookOpen, Video, MessageCircle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Button from '../common/Button';

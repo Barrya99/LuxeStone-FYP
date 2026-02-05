@@ -1,4 +1,3 @@
-// src/components/home/HeroSection.jsx
 import { Link } from 'react-router-dom';
 import { Sparkles, ArrowRight, Shield, Award, Leaf } from 'lucide-react';
 import Button from '../common/Button';

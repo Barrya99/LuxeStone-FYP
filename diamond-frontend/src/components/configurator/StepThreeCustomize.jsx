@@ -1,4 +1,3 @@
-// src/components/configurator/StepThreeCustomize.jsx
 import { useState } from 'react';
 import { ChevronLeft, ShoppingCart, Heart, Hand } from 'lucide-react';
 import { formatPrice, formatCarat } from '../../utils/formatters';
