@@ -133,7 +133,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite default port
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
-    "https://jewelary-websitefyp.onrender.com",  # Render backend (for admin/testing)
+    "https://jewelary-websitefyp.onrender.com", 
+    "https://jewelary-website-fyp.vercel.app/",
+     # Render backend (for admin/testing)
     # Add your Vercel frontend URL here after deployment:
     # "https://your-app.vercel.app",
 ]
