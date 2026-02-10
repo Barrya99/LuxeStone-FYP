@@ -1,0 +1,11 @@
+# Ignore Python virtual environments
+diamond-backend/venv/
+
+# OS / editor
+.DS_Store
+.vscode/
+__pycache__/
+*.pyc
+
+# Environment
+.env
