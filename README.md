@@ -2,6 +2,8 @@
 
 A full-stack web application for browsing, configuring, and purchasing diamond rings. Built with React + Vite for the frontend and Django for the backend.
 
+**Status:** ✅ Fresh repository with clean commit history. Ready for development and deployment!
+
 ## Project Overview
 
 This project is a comprehensive e-commerce platform for diamond jewelry with the following features:
@@ -33,9 +35,16 @@ This project is a comprehensive e-commerce platform for diamond jewelry with the
 
 ## Prerequisites
 
-- **Node.js** 16+ and npm (for frontend)
+- **Node.js** 20.19+ or 22.12+ and npm (for frontend) - Vite requires Node 20.19+
 - **Python** 3.11+ (for backend)
 - **Git** (for version control)
+
+**Check your versions:**
+```bash
+node --version
+npm --version
+python --version
+```
 
 ## Project Structure
 
@@ -58,7 +67,35 @@ This project is a comprehensive e-commerce platform for diamond jewelry with the
     └── rings/                 # Django app for rings
 ```
 
-## Installation
+## Quick Start
+
+The fastest way to get the app running:
+
+### Terminal 1 - Backend
+```bash
+cd diamond-backend
+python -m venv venv
+# Windows
+venv\Scripts\activate
+# macOS/Linux
+source venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+### Terminal 2 - Frontend
+```bash
+cd diamond-frontend
+npm install
+npm run dev
+```
+
+Then open: **http://localhost:5173**
+
+---
+
+## Detailed Installation
 
 ### Backend Setup
 
@@ -71,6 +108,7 @@ This project is a comprehensive e-commerce platform for diamond jewelry with the
    ```bash
    python -m venv venv
    ```
+   *(Note: venv is gitignored and will be created fresh on each clone)*
 
 3. **Activate the virtual environment:**
    
@@ -119,7 +157,9 @@ This project is a comprehensive e-commerce platform for diamond jewelry with the
 
 ## Running the Application
 
-### Start Backend Server
+**Important:** You need to run both servers simultaneously in separate terminals.
+
+### Terminal 1: Start Backend Server
 
 1. **Navigate to backend directory:**
    ```bash
@@ -141,10 +181,12 @@ This project is a comprehensive e-commerce platform for diamond jewelry with the
    ```
 
    The backend will be available at: `http://localhost:8000`
+   - Admin Panel: `http://localhost:8000/admin`
+   - API: `http://localhost:8000/api`
 
-### Start Frontend Server
+### Terminal 2: Start Frontend Server
 
-In a new terminal:
+In a **new terminal window**:
 
 1. **Navigate to frontend directory:**
    ```bash
@@ -162,6 +204,8 @@ In a new terminal:
    ```
    http://localhost:5173
    ```
+
+You should now see the Jewellery Website app running! The frontend will automatically communicate with the backend API.
 
 ## Available Scripts
 
@@ -218,20 +262,26 @@ python manage.py createsuperuser
 
 ## Environment Variables
 
+### Frontend (.env)
+
 Create a `.env` file in the `diamond-frontend` directory:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
-Create a `.env` file in the `diamond-backend` directory:
+### Backend (.env)
+
+Create a `.env` file in the `diamond-backend` directory (optional, for production):
 
 ```env
 DEBUG=True
-SECRET_KEY=your-secret-key-here
+SECRET_KEY=your-secret-key-here-change-in-production
 ALLOWED_HOSTS=localhost,127.0.0.1
 DATABASE_URL=sqlite:///db.sqlite3
 ```
+
+**Note:** The backend works without a .env file in development mode with default settings.
 
 ## Deployment
 
