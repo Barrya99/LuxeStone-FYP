@@ -1,4 +1,3 @@
-// src/components/configurator/ProgressStepper.jsx
 import { Check } from 'lucide-react';
 
 const ProgressStepper = ({ currentStep, steps }) => {

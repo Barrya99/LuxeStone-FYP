@@ -1,4 +1,3 @@
-// src/components/configurator/StepOneDiamond.jsx
 import { useState, useEffect } from 'react';
 import { ChevronRight, Sparkles } from 'lucide-react';
 import { diamondAPI } from '../../services/api';
