@@ -255,5 +255,15 @@ class UserInteractionCreateSerializer(serializers.ModelSerializer):
         fields = [
             'user', 'session_id', 'interaction_type', 'diamond',
             'setting', 'config', 'interaction_data', 'page_url',
-            'device_type', 'browser'
+            'device_type', 'browser', 'created_at'
         ]
+        extra_kwargs = {
+            'created_at': {'required': False, 'allow_null': True}
+        }
+    
+    def create(self, validated_data):
+        from django.utils import timezone
+        # Set created_at to current time if not provided
+        if not validated_data.get('created_at'):
+            validated_data['created_at'] = timezone.now()
+        return UserInteraction.objects.create(**validated_data)

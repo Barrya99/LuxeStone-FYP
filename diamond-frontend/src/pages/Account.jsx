@@ -1,13 +1,13 @@
-// diamond-frontend/src/pages/Account.jsx - UPDATED (using correct API)
+// diamond-frontend/src/pages/Account.jsx - UPDATED (no auth token needed)
 
 import { useState, useEffect } from 'react';
-import { Heart, Eye, ShoppingCart, LogOut, Loader } from 'lucide-react';
+import { Heart, Eye, ShoppingCart, LogOut, Loader, Package } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useCartStore } from '../store/useCartStore';
-import { formatPrice, formatCarat } from '../utils/formatters';
+import { orderAPI } from '../services/api';
+import { formatPrice, formatCarat, formatDate } from '../utils/formatters';
 import Button from '../components/common/Button';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const Account = () => {
@@ -26,7 +26,6 @@ const Account = () => {
 
   useEffect(() => {
     fetchOrders();
-    // Calculate prices for diamond favorites
     if (favorites.length > 0) {
       calculateFavoritePrices();
     }
@@ -35,26 +34,17 @@ const Account = () => {
   const fetchOrders = async () => {
     try {
       setLoadingOrders(true);
-      const token = localStorage.getItem('auth_token');
       
-      // Fetch from backend API
-      const response = await axios.get(
-        `${API_BASE_URL}/orders/`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      // FIXED: Use the my_orders endpoint without auth
+      // or simply use getAll() which returns all orders
+      const response = await orderAPI.getAll({ ordering: '-created_at' });
       
-      // Handle both paginated and direct array response
-      const ordersData = response.data.results || response.data || [];
+      // Handle both paginated and direct responses
+      const ordersData = response.data?.results || response.data || [];
       setOrders(Array.isArray(ordersData) ? ordersData : []);
       
     } catch (error) {
       console.error('Error fetching orders:', error);
-      // Show error but don't crash
       toast.error('Failed to load orders');
       setOrders([]);
     } finally {
@@ -75,10 +65,9 @@ const Account = () => {
         }));
 
         try {
-          const response = await axios.post(
-            `${API_BASE_URL}/pricing/calculate-diamond-price/`,
-            { diamond_id: fav.id }
-          );
+          const response = await orderAPI.create({
+            diamond_id: fav.id
+          });
 
           if (response.data.success) {
             priceMap[fav.id] = response.data.calculated_price;
@@ -175,7 +164,17 @@ const Account = () => {
                     : 'text-gray-600 border-transparent hover:text-gray-900'
                 }`}
               >
-                {tab === 'orders' ? 'My Orders' : 'My Favorites'}
+                {tab === 'orders' ? (
+                  <>
+                    <Package className="h-5 w-5 inline mr-2" />
+                    My Orders
+                  </>
+                ) : (
+                  <>
+                    <Heart className="h-5 w-5 inline mr-2" />
+                    My Favorites
+                  </>
+                )}
               </button>
             ))}
           </div>
@@ -201,6 +200,7 @@ const Account = () => {
               </div>
             ) : orders.length === 0 ? (
               <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+                <Package className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-600 mb-4">No orders yet</p>
                 <Link to="/diamonds">
                   <Button>Start Shopping</Button>
@@ -260,11 +260,11 @@ const Account = () => {
                           <div className="space-y-2">
                             {order.items.map((item, idx) => (
                               <div key={idx} className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                                <p>• {item.item_description || 'Ring'}</p>
+                                <p className="font-medium">• {item.item_description || 'Ring'}</p>
                                 <p className="text-xs text-gray-500 mt-1">
                                   Ring Size: {item.ring_size} | 
-                                  Diamond: ${item.diamond_price?.toFixed(2)} | 
-                                  Setting: ${item.setting_price?.toFixed(2)}
+                                  Diamond: ${item.diamond_price?.toFixed(2) || '0.00'} | 
+                                  Setting: ${item.setting_price?.toFixed(2) || '0.00'}
                                 </p>
                               </div>
                             ))}
@@ -276,15 +276,15 @@ const Account = () => {
                       <div className="border-t border-gray-100 mt-4 pt-4 text-sm">
                         <div className="flex justify-between mb-2">
                           <span className="text-gray-600">Subtotal:</span>
-                          <span className="font-medium">{formatPrice(order.subtotal)}</span>
+                          <span className="font-medium">{formatPrice(order.subtotal || 0)}</span>
                         </div>
                         <div className="flex justify-between mb-2">
                           <span className="text-gray-600">Tax:</span>
-                          <span className="font-medium">{formatPrice(order.tax_amount)}</span>
+                          <span className="font-medium">{formatPrice(order.tax_amount || 0)}</span>
                         </div>
                         <div className="flex justify-between mb-2">
                           <span className="text-gray-600">Shipping:</span>
-                          <span className="font-medium">{formatPrice(order.shipping_cost)}</span>
+                          <span className="font-medium">{formatPrice(order.shipping_cost || 0)}</span>
                         </div>
                         <div className="flex justify-between border-t border-gray-100 pt-2 font-semibold">
                           <span>Total:</span>
