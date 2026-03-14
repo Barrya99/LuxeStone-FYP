@@ -5,6 +5,7 @@ import { SlidersHorizontal } from 'lucide-react';
 import { diamondAPI } from '../services/api';
 import DiamondCard from '../components/products/DiamondCard';
 import FilterSidebar from '../components/products/FilterSidebar';
+import RecommendationsSection from '../components/recommendations/RecommendationsSection';
 import Loading from '../components/common/Loading';
 import Button from '../components/common/Button';
 import { 
@@ -225,6 +226,7 @@ const BrowseDiamonds = () => {
           </div>
         </div>
       </div>
+      <RecommendationsSection type="budget" budget={filters.max_price} />
     </div>
   );
 };

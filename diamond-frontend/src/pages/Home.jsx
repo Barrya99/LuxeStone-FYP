@@ -3,6 +3,7 @@ import HeroSection from '../components/home/HeroSection';
 import FeaturesSection from '../components/home/FeaturesSection';
 import FeaturedProducts from '../components/home/FeaturedProducts';
 import EducationSection from '../components/home/EducationSection';
+import RecommendationsSection from '../components/recommendations/RecommendationsSection';
 import { interactionAPI } from '../services/api';
 
 const Home = () => {
@@ -36,6 +37,7 @@ const Home = () => {
       <HeroSection />
       <FeaturesSection />
       <FeaturedProducts />
+      <RecommendationsSection type="personalized" />
       <EducationSection />
     </div>
   );

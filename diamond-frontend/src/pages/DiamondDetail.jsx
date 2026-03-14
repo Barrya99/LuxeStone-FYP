@@ -14,6 +14,7 @@ import { useConfiguratorStore } from '../store/useConfiguratorStore';
 import { useComparisonStore } from '../store/useComparisonStore';
 import Button from '../components/common/Button';
 import Loading from '../components/common/Loading';
+import RecommendationsSection from '../components/recommendations/RecommendationsSection';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -464,6 +465,7 @@ const DiamondDetail = () => {
           </div>
         </div>
       </div>
+      <RecommendationsSection type="similar" diamondId={id} />
     </div>
   );
 };
