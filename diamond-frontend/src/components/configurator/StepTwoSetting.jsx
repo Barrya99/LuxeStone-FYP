@@ -1,18 +1,24 @@
+// diamond-frontend/src/components/configurator/StepTwoSetting.jsx
+
 import { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { Search, Filter, ChevronDown, Check } from 'lucide-react';
 import { settingAPI } from '../../services/api';
 import { formatPrice } from '../../utils/formatters';
-import { SETTING_STYLES, METAL_TYPES } from '../../utils/constants';
-import Button from '../common/Button';
 import Loading from '../common/Loading';
+import Button from '../common/Button';
+import toast from 'react-hot-toast';
 
-const StepTwoSetting = ({ selectedSetting, onSelectSetting, onBack, selectedDiamond }) => {
+const StepTwoSetting = ({ selectedDiamond, onSelectSetting, selectedSetting }) => {
   const [settings, setSettings] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [filters, setFilters] = useState({
     style_type: '',
     metal_type: '',
   });
+
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchSettings();
@@ -21,182 +27,266 @@ const StepTwoSetting = ({ selectedSetting, onSelectSetting, onBack, selectedDiam
   const fetchSettings = async () => {
     try {
       setLoading(true);
+      
       const params = {
-        page_size: 6,
-        ordering: '-popularity_score',
+        page_size: 12,
         ...filters,
       };
 
       Object.keys(params).forEach(key => {
-        if (params[key] === '') delete params[key];
+        if (params[key] === '' || params[key] === null) {
+          delete params[key];
+        }
       });
 
       const response = await settingAPI.getAll(params);
-      setSettings(response.data.results || []);
+      
+      // Filter by compatible shapes if diamond selected
+      let filteredSettings = response.data.results || [];
+      if (selectedDiamond?.shape) {
+        filteredSettings = filteredSettings.filter(setting => {
+          if (!setting.compatible_shapes) return true;
+          const shapes = setting.compatible_shapes.split(',').map(s => s.trim());
+          return shapes.includes(selectedDiamond.shape);
+        });
+      }
+      
+      setSettings(filteredSettings);
     } catch (error) {
       console.error('Error fetching settings:', error);
+      toast.error('Failed to load settings');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value === prev[key] ? '' : value,
-    }));
+  const filteredSettings = settings.filter(setting => {
+    if (searchTerm) {
+      return (
+        setting.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        setting.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    return true;
+  });
+
+  const getMetalColor = (metalType) => {
+    const colors = {
+      'Gold': 'from-yellow-300 via-yellow-200 to-amber-200',
+      'White Gold': 'from-gray-300 via-gray-200 to-slate-200',
+      'Platinum': 'from-slate-300 via-slate-200 to-gray-200',
+      'Silver': 'from-gray-300 via-blue-100 to-slate-200',
+      'Rose Gold': 'from-rose-300 via-rose-200 to-pink-200',
+    };
+    return colors[metalType] || 'from-gray-300 via-gray-200 to-slate-200';
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
         <h2 className="font-display text-3xl font-bold text-gray-900 mb-2">
           Choose Your Setting
         </h2>
         <p className="text-gray-600">
-          Select a setting style for your {selectedDiamond?.shape} diamond
+          {selectedDiamond 
+            ? `Ring settings compatible with ${selectedDiamond.shape} diamonds`
+            : 'Select a diamond first to see compatible settings'}
         </p>
       </div>
 
-      {/* Selected Diamond Summary */}
-      <div className="bg-primary-50 border border-primary-200 rounded-xl p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm text-primary-700 font-medium mb-1">Selected Diamond</div>
-            <div className="font-bold text-gray-900">
-              {selectedDiamond?.carat}ct {selectedDiamond?.shape} - {formatPrice(selectedDiamond?.base_price)}
+      {/* Search & Filter */}
+      <div className="space-y-4">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by name or SKU..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+
+        {/* Filter Toggle */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
+        >
+          <Filter className="h-4 w-4" />
+          {showFilters ? 'Hide' : 'Show'} Filters
+          <ChevronDown className={`h-4 w-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* Filters */}
+        {showFilters && (
+          <div className="grid sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Style</label>
+              <select
+                value={filters.style_type}
+                onChange={(e) => setFilters(prev => ({ ...prev, style_type: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">All Styles</option>
+                <option value="Solitaire">Solitaire</option>
+                <option value="Halo">Halo</option>
+                <option value="Three Stone">Three Stone</option>
+                <option value="Vintage">Vintage</option>
+                <option value="Modern">Modern</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Metal</label>
+              <select
+                value={filters.metal_type}
+                onChange={(e) => setFilters(prev => ({ ...prev, metal_type: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">All Metals</option>
+                <option value="Gold">Gold</option>
+                <option value="White Gold">White Gold</option>
+                <option value="Platinum">Platinum</option>
+                <option value="Rose Gold">Rose Gold</option>
+              </select>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            Change
-          </Button>
-        </div>
+        )}
       </div>
 
-      {/* Quick Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="font-semibold text-gray-900 mb-4">Filter Settings</h3>
-        
-        {/* Style Filter */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">Style</label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {SETTING_STYLES.slice(0, 4).map((style) => (
-              <button
-                key={style.value}
-                onClick={() => handleFilterChange('style_type', style.value)}
-                className={`p-3 border rounded-lg text-left transition-all ${
-                  filters.style_type === style.value
-                    ? 'border-primary-600 bg-primary-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="font-medium text-sm">{style.label}</div>
-                <div className="text-xs text-gray-500 mt-1">{style.description}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Metal Type Filter */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">Metal Type</label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {METAL_TYPES.slice(0, 4).map((metal) => (
-              <button
-                key={metal.value}
-                onClick={() => handleFilterChange('metal_type', metal.value)}
-                className={`p-3 border rounded-lg text-sm font-medium transition-all ${
-                  filters.metal_type === metal.value
-                    ? 'border-primary-600 bg-primary-50 text-primary-700'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div
-                  className="w-6 h-6 rounded-full mb-2"
-                  style={{ backgroundColor: metal.color }}
-                />
-                {metal.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Settings Grid */}
+      {/* Settings Grid Cards */}
       {loading ? (
         <Loading />
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {settings.map((setting) => (
-            <div
-              key={setting.setting_id}
-              onClick={() => onSelectSetting(setting)}
-              className={`group cursor-pointer bg-white rounded-xl border-2 overflow-hidden transition-all ${
-                selectedSetting?.setting_id === setting.setting_id
-                  ? 'border-primary-600 shadow-xl'
-                  : 'border-gray-200 hover:border-primary-300 hover:shadow-lg'
-              }`}
-            >
-              {/* Image */}
-              <div className="relative aspect-square bg-gradient-to-br from-amber-50 to-yellow-50">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-24 h-24 bg-gradient-to-br from-amber-200 to-yellow-200 rounded-full opacity-50 group-hover:scale-110 transition-transform" />
-                </div>
-                
-                {selectedSetting?.setting_id === setting.setting_id && (
-                  <div className="absolute inset-0 bg-primary-600/10 flex items-center justify-center">
-                    <div className="bg-primary-600 text-white px-4 py-2 rounded-full font-medium text-sm">
-                      Selected ✓
+      ) : filteredSettings.length > 0 ? (
+        <>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredSettings.map((setting) => {
+              const isSelected = selectedSetting?.setting_id === setting.setting_id;
+
+              return (
+                <div
+                  key={setting.setting_id}
+                  onClick={() => onSelectSetting(setting)}
+                  className={`group bg-white rounded-xl border-2 overflow-hidden cursor-pointer transition-all duration-300 ${
+                    isSelected
+                      ? 'border-primary-600 shadow-2xl scale-105'
+                      : 'border-gray-200 hover:border-primary-300 hover:shadow-xl'
+                  }`}
+                >
+                  {/* Image Container */}
+                  <div 
+                    className="relative aspect-square bg-gradient-to-br overflow-hidden"
+                    style={{backgroundImage: `linear-gradient(to bottom right, ${getMetalColor(setting.metal_type)})`}}
+                  >
+                    {/* Setting Visual */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {/* Ring Setting Representation */}
+                      <div className="relative">
+                        {/* Band */}
+                        <div className={`w-32 h-32 bg-gradient-to-br ${getMetalColor(setting.metal_type)} rounded-full opacity-70 group-hover:scale-110 transition-transform duration-500 blur-sm`} />
+                        
+                        {/* Center stone placeholder */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-12 h-12 bg-white rounded-full opacity-40 group-hover:opacity-60 transition-opacity duration-500 shadow-lg" />
+                          <div className="absolute w-8 h-8 bg-blue-300 rounded-full opacity-30" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Selected Checkmark */}
+                    {isSelected && (
+                      <div className="absolute top-4 right-4 bg-primary-600 rounded-full p-2">
+                        <Check className="h-5 w-5 text-white fill-white" />
+                      </div>
+                    )}
+
+                    {/* Style Badge */}
+                    <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-1">
+                      <p className="text-sm font-semibold text-gray-900">{setting.style_type}</p>
                     </div>
                   </div>
-                )}
 
-                <div className="absolute top-3 left-3">
-                  <span className="px-3 py-1 bg-amber-600 text-white text-xs font-medium rounded-full">
-                    {setting.style_type}
-                  </span>
-                </div>
-              </div>
+                  {/* Content */}
+                  <div className="p-4 space-y-3">
+                    {/* Name & Metal */}
+                    <div>
+                      <p className="text-xs text-gray-500">{setting.sku}</p>
+                      <p className="text-lg font-bold text-gray-900 line-clamp-2">
+                        {setting.name}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">{setting.metal_type}</p>
+                    </div>
 
-              {/* Info */}
-              <div className="p-4">
-                <h3 className="font-display font-bold text-gray-900 mb-2">
-                  {setting.name}
-                </h3>
-                <div className="flex flex-wrap gap-2 mb-3 text-xs">
-                  <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded font-medium">
-                    {setting.metal_type}
-                  </span>
-                  {setting.popularity_score > 80 && (
-                    <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded font-medium">
-                      Popular
-                    </span>
-                  )}
+                    {/* Details */}
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="bg-gray-50 rounded p-2">
+                        <p className="text-gray-500">Style</p>
+                        <p className="font-semibold text-gray-900 truncate">{setting.style_type}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded p-2">
+                        <p className="text-gray-500">Metal</p>
+                        <p className="font-semibold text-gray-900 truncate">{setting.metal_type.split(' ')[0]}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded p-2">
+                        <p className="text-gray-500">Popular</p>
+                        <p className="font-semibold text-gray-900">⭐ {setting.popularity_score || '—'}</p>
+                      </div>
+                    </div>
+
+                    {/* Price Section */}
+                    <div className="border-t border-gray-200 pt-3 space-y-2">
+                      <p className="text-xs text-gray-500 font-medium">Setting Price</p>
+                      <p className="text-2xl font-bold text-primary-600">
+                        {formatPrice(setting.base_price)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Total with diamond shown in next step
+                      </p>
+                    </div>
+
+                    {/* Select Button */}
+                    <Button
+                      onClick={() => onSelectSetting(setting)}
+                      variant={isSelected ? 'primary' : 'outline'}
+                      className="w-full"
+                    >
+                      {isSelected ? '✓ Selected' : 'Select Setting'}
+                    </Button>
+                  </div>
                 </div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {formatPrice(setting.base_price)}
-                </div>
-              </div>
-            </div>
-          ))}
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <div className="bg-gray-50 rounded-lg p-12 text-center">
+          <p className="text-gray-600 mb-4">
+            {selectedDiamond 
+              ? `No settings available for ${selectedDiamond.shape} diamonds`
+              : 'No settings found matching your filters.'}
+          </p>
+          <Button 
+            variant="primary" 
+            onClick={() => setFilters({
+              style_type: '',
+              metal_type: '',
+            })}
+          >
+            Clear Filters
+          </Button>
         </div>
       )}
 
-      {/* Navigation Buttons */}
-      <div className="flex justify-between">
-        <Button size="lg" variant="outline" onClick={onBack}>
-          <ChevronLeft className="h-5 w-5" />
-          Back to Diamonds
-        </Button>
-        
-        {selectedSetting && (
-          <Button size="lg">
-            Continue to Customize
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        )}
+      {/* Info Box */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+        <p className="font-semibold mb-2">💍 Setting Information</p>
+        <ul className="space-y-1 text-xs">
+          <li>✓ All settings shown are compatible with your selected diamond shape</li>
+          <li>✓ Setting price shown here; combined with diamond price in next step</li>
+          <li>✓ Settings are templates - unlimited availability</li>
+        </ul>
       </div>
     </div>
   );

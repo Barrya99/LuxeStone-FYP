@@ -88,7 +88,22 @@ const FilterSidebar = ({ filters, onFilterChange, onClearFilters, onClose }) => 
             ))}
           </div>
         </FilterSection>
-
+<div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-800">
+  <p className="font-semibold mb-2">💡 Price Filter Note</p>
+  <p>
+    Prices shown are <strong>REAL calculated prices</strong> including quality multipliers for cut, color, and clarity.
+    Filter ranges are based on these calculated prices, not base prices.
+  </p>
+</div>
+ 
+ 
+{/* Price Filter Note */}
+<div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 mb-6">
+  <p className="font-semibold">✓ Real Prices Applied</p>
+  <p className="text-xs mt-1">
+    All prices include quality adjustments for 4Cs.
+  </p>
+</div>
         {/* Price Range Filter */}
         <FilterSection title="Price Range" id="price">
           <div className="space-y-3">

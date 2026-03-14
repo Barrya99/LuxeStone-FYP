@@ -1,9 +1,14 @@
+// diamond-frontend/src/components/products/DiamondCard.jsx
+
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Heart, Eye, ShoppingCart, ArrowLeftRight } from 'lucide-react';
+import { Heart, Eye, ShoppingCart, ArrowLeftRight, Loader } from 'lucide-react';
 import { formatPrice, formatCarat, getCutBadge, getColorBadge } from '../../utils/formatters';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { useCartStore } from '../../store/useCartStore';
 import { useComparisonStore } from '../../store/useComparisonStore';
+import { useConfiguratorStore } from '../../store/useConfiguratorStore';
+import axios from 'axios';
 import Button from '../common/Button';
 import toast from 'react-hot-toast';
 
@@ -12,6 +17,45 @@ const DiamondCard = ({ diamond }) => {
   const { favorites, addFavorite, removeFavorite, isFavorite } = useFavoritesStore();
   const { addItem } = useCartStore();
   const { addDiamond } = useComparisonStore();
+  const { selectDiamond } = useConfiguratorStore();
+  
+  // State for real-time price calculation
+  const [calculatedPrice, setCalculatedPrice] = useState(null);
+  const [pricingInfo, setPricingInfo] = useState(null);
+  const [loadingPrice, setLoadingPrice] = useState(true);
+  
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+
+  // Calculate real price on component mount
+  useEffect(() => {
+    calculateRealPrice();
+  }, [diamond.diamond_id]);
+
+  const calculateRealPrice = async () => {
+    try {
+      setLoadingPrice(true);
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/pricing/calculate-diamond-price/`,
+        { diamond_id: diamond.diamond_id }
+      );
+
+      if (response.data.success) {
+        setCalculatedPrice(response.data.calculated_price);
+        setPricingInfo({
+          qualityMultiplier: response.data.quality_multiplier,
+          clarityAdjustment: response.data.clarity_adjustment,
+          sizePremium: response.data.size_premium,
+        });
+      }
+    } catch (error) {
+      console.error('Error calculating price:', error);
+      // Fallback: use base_price from diamond
+      setCalculatedPrice(parseFloat(diamond.base_price));
+    } finally {
+      setLoadingPrice(false);
+    }
+  };
 
   const handleToggleFavorite = (e) => {
     e.preventDefault();
@@ -39,12 +83,25 @@ const DiamondCard = ({ diamond }) => {
     addItem({
       type: 'diamond',
       diamond_id: diamond.diamond_id,
-      total_price: diamond.base_price,
+      total_price: calculatedPrice || parseFloat(diamond.base_price),
       ...diamond,
     });
     toast.success('Added to cart');
   };
-
+const handleBuildRing = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  // Select this diamond and advance to step 2 (setting selection)
+  selectDiamond(diamond);
+  
+  // Navigate to configurator
+  navigate('/configurator');
+  
+  // Info toast
+  toast.success('Diamond selected! Now choose a setting to complete your ring.');
+};
+ 
   const handleCompare = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -65,122 +122,164 @@ const DiamondCard = ({ diamond }) => {
     }
   };
 
+  const displayPrice = calculatedPrice || parseFloat(diamond.base_price);
+
   return (
     <Link
       to={`/diamonds/${diamond.diamond_id}`}
       className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300"
     >
-      {/* Image Section */}
+      {/* Image Container */}
       <div className="relative aspect-square bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-        {/* Placeholder Diamond Visual */}
+        {/* Diamond Visual */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative">
-            <div className="w-32 h-32 bg-gradient-to-br from-primary-200 via-blue-200 to-purple-200 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-6xl opacity-30">💎</span>
-            </div>
-          </div>
+          <div className="w-32 h-32 bg-gradient-to-br from-blue-300 via-blue-200 to-cyan-200 rounded-full opacity-60 group-hover:scale-110 transition-transform duration-500 blur-sm" />
+          <div className="absolute w-24 h-24 bg-white rounded-full opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
         </div>
 
-        {/* Quick Actions */}
-        <div className="absolute top-3 right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Action Buttons */}
+        <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          {/* Favorite Button */}
           <button
             onClick={handleToggleFavorite}
             className={`p-2 rounded-full backdrop-blur-sm transition-all ${
               isFavorite(diamond.diamond_id)
                 ? 'bg-red-500 text-white'
-                : 'bg-white/90 text-gray-700 hover:bg-white'
+                : 'bg-white/80 text-gray-700 hover:bg-white'
             }`}
-            title="Add to favorites"
+            title={isFavorite(diamond.diamond_id) ? 'Remove from favorites' : 'Add to favorites'}
           >
-            <Heart className={`h-5 w-5 ${isFavorite(diamond.diamond_id) ? 'fill-current' : ''}`} />
+            <Heart
+              className={`h-5 w-5 ${
+                isFavorite(diamond.diamond_id) ? 'fill-current' : ''
+              }`}
+            />
           </button>
+
+          {/* Compare Button */}
           <button
-            onClick={handleAddToCart}
-            className="p-2 bg-white/90 backdrop-blur-sm text-gray-700 hover:bg-white rounded-full transition-all"
-            title="Add to cart"
+            onClick={handleCompare}
+            className="p-2 rounded-full bg-white/80 text-gray-700 hover:bg-white transition-all"
+            title="Add to comparison"
           >
-            <ShoppingCart className="h-5 w-5" />
+            <ArrowLeftRight className="h-5 w-5" />
+          </button>
+
+          {/* View Detail */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              navigate(`/diamonds/${diamond.diamond_id}`);
+            }}
+            className="p-2 rounded-full bg-white/80 text-gray-700 hover:bg-white transition-all"
+            title="View details"
+          >
+            <Eye className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-2">
-          <span className="px-3 py-1 bg-primary-600 text-white text-xs font-medium rounded-full">
-            {diamond.shape}
-          </span>
-          {diamond.certificate_type && (
-            <span className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded-full">
-              {diamond.certificate_type}
-            </span>
-          )}
-        </div>
+        {/* Availability Badge */}
+        {!diamond.is_available && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <span className="text-white font-semibold">Out of Stock</span>
+          </div>
+        )}
       </div>
 
-      {/* Content Section */}
-      <div className="p-5">
-        {/* Title */}
-        <h3 className="font-display text-lg font-bold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
-          {formatCarat(diamond.carat)} {diamond.shape} Diamond
-        </h3>
-
-        {/* 4Cs Badges */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className={`px-2 py-1 rounded text-xs font-medium ${getCutBadge(diamond.cut)}`}>
-            {diamond.cut}
-          </span>
-          <span className={`px-2 py-1 rounded text-xs font-medium ${getColorBadge(diamond.color)}`}>
-            Color: {diamond.color}
-          </span>
-          <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-            {diamond.clarity}
+      {/* Content */}
+      <div className="p-4 space-y-3">
+        {/* Carat & Shape */}
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900">
+            {formatCarat(diamond.carat)} {diamond.shape}
+          </h3>
+          <span className="text-xs font-medium text-gray-500">
+            {diamond.sku}
           </span>
         </div>
 
-        {/* Specs Grid */}
-        <div className="grid grid-cols-2 gap-2 mb-4 text-sm">
-          <div>
-            <span className="text-gray-500">Table:</span>
-            <span className="ml-1 font-medium text-gray-900">
-              {diamond.table_percent ? `${diamond.table_percent}%` : 'N/A'}
-            </span>
+        {/* 4Cs Specs */}
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="bg-gray-50 rounded p-2">
+            <p className="text-gray-500">Cut</p>
+            <p className="font-semibold text-gray-900">{diamond.cut}</p>
           </div>
-          <div>
-            <span className="text-gray-500">Depth:</span>
-            <span className="ml-1 font-medium text-gray-900">
-              {diamond.depth_percent ? `${diamond.depth_percent}%` : 'N/A'}
-            </span>
+          <div className="bg-gray-50 rounded p-2">
+            <p className="text-gray-500">Color</p>
+            <p className="font-semibold text-gray-900">{diamond.color}</p>
+          </div>
+          <div className="bg-gray-50 rounded p-2">
+            <p className="text-gray-500">Clarity</p>
+            <p className="font-semibold text-gray-900">{diamond.clarity}</p>
+          </div>
+          <div className="bg-gray-50 rounded p-2">
+            <p className="text-gray-500">Cert</p>
+            <p className="font-semibold text-gray-900">{diamond.certificate_type || 'GIA'}</p>
           </div>
         </div>
 
-        {/* Price & CTA */}
-        <div className="pt-4 border-t border-gray-100">
-          <div className="flex items-center justify-between mb-3">
+        {/* Price Section with Real Calculation */}
+        <div className="border-t border-gray-200 pt-3 space-y-2">
+          {/* Price */}
+          <div className="flex items-end justify-between">
             <div>
-              <div className="text-2xl font-bold text-gray-900">
-                {formatPrice(diamond.base_price)}
-              </div>
-              <div className="text-xs text-gray-500">Lab-Grown</div>
+              <p className="text-xs text-gray-500 mb-1">Price (With Quality Adjustment)</p>
+              {loadingPrice ? (
+                <div className="flex items-center gap-1">
+                  <Loader className="h-4 w-4 animate-spin text-primary-600" />
+                  <span className="text-sm text-gray-600">Calculating...</span>
+                </div>
+              ) : (
+                <p className="text-xl font-bold text-primary-600">
+                  {formatPrice(displayPrice)}
+                </p>
+              )}
             </div>
           </div>
-          
-          <div className="flex gap-2">
-            <Button 
-              size="sm" 
-              variant="outline" 
-              fullWidth 
-              title="Compare"
-              onClick={handleCompare}
-            >
-              <ArrowLeftRight className="h-4 w-4" />
-              Compare
-            </Button>
-            <Button size="sm" fullWidth className="group/btn">
-              <Eye className="h-4 w-4" />
-              View
-            </Button>
-          </div>
+
+          {/* Quality Multiplier Info (if available) */}
+          {pricingInfo && !loadingPrice && (
+            <div className="bg-blue-50 rounded-lg p-2 text-xs space-y-1 border border-blue-100">
+              <div className="flex justify-between">
+                <span className="text-blue-700">Quality Factor:</span>
+                <span className="font-semibold text-blue-900">
+                  {pricingInfo.qualityMultiplier.toFixed(2)}x
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-blue-700">Clarity Adj:</span>
+                <span className="font-semibold text-blue-900">
+                  {pricingInfo.clarityAdjustment.toFixed(2)}x
+                </span>
+              </div>
+              {pricingInfo.sizePremium > 1 && (
+                <div className="flex justify-between">
+                  <span className="text-blue-700">Size Premium:</span>
+                  <span className="font-semibold text-blue-900">
+                    {pricingInfo.sizePremium.toFixed(2)}x
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Add to Cart Button */}
+        <Button
+          onClick={handleAddToCart}
+          className="w-full"
+          disabled={!diamond.is_available || loadingPrice}
+        >
+          <ShoppingCart className="h-4 w-4" />
+          <span>Add to Cart</span>
+        </Button>
+        <Button
+  onClick={handleBuildRing}
+  className="w-full bg-primary-600 hover:bg-primary-700 flex items-center justify-center gap-2"
+  title="Start building a ring with this diamond"
+>
+  🔨 Build Ring
+</Button>
       </div>
     </Link>
   );

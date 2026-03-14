@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -8,6 +7,7 @@ import {
   Plus,
   Sparkles,
   AlertCircle,
+  Loader,
 } from "lucide-react";
 import {
   formatPrice,
@@ -19,15 +19,20 @@ import { useCartStore } from "../store/useCartStore";
 import { useComparisonStore } from "../store/useComparisonStore";
 import Button from "../components/common/Button";
 import Loading from "../components/common/Loading";
+import axios from "axios";
 import toast from "react-hot-toast";
 
 const Comparison = () => {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [diamondPrices, setDiamondPrices] = useState({});
+  const [pricingLoading, setPricingLoading] = useState({});
   const { addItem } = useCartStore();
   const { diamonds, settings, removeDiamond, removeSetting, canRemove } =
     useComparisonStore();
+
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
   useEffect(() => {
     // Convert store items to comparison format
@@ -36,8 +41,58 @@ const Comparison = () => {
       ...settings.map((s) => ({ ...s, itemType: "setting" })),
     ];
     setItems(comparisonItems);
+    
+    // FIXED: Calculate diamond prices
+    if (diamonds.length > 0) {
+      calculateDiamondPrices(diamonds);
+    }
     setLoading(false);
   }, [diamonds, settings]);
+
+  // FIXED: Calculate real prices for diamonds
+  const calculateDiamondPrices = async (diamondList) => {
+    try {
+      const priceMap = {};
+      
+      for (const diamond of diamondList) {
+        setPricingLoading(prev => ({
+          ...prev,
+          [diamond.diamond_id]: true
+        }));
+
+        try {
+          const response = await axios.post(
+            `${API_BASE_URL}/pricing/calculate-diamond-price/`,
+            { diamond_id: diamond.diamond_id }
+          );
+
+          if (response.data.success) {
+            priceMap[diamond.diamond_id] = response.data.calculated_price;
+          }
+        } catch (error) {
+          priceMap[diamond.diamond_id] = parseFloat(diamond.base_price);
+        }
+
+        setPricingLoading(prev => {
+          const updated = { ...prev };
+          delete updated[diamond.diamond_id];
+          return updated;
+        });
+      }
+
+      setDiamondPrices(priceMap);
+    } catch (error) {
+      console.error('Error calculating prices:', error);
+    }
+  };
+
+  // FIXED: Get display price
+  const getDisplayPrice = (item) => {
+    if (item.itemType === 'diamond') {
+      return diamondPrices[item.diamond_id] || parseFloat(item.base_price);
+    }
+    return parseFloat(item.base_price);
+  };
 
   const handleRemoveItem = (index) => {
     const item = items[index];
@@ -58,12 +113,13 @@ const Comparison = () => {
   };
 
   const handleAddToCart = (item) => {
+    const price = getDisplayPrice(item);
     addItem({
       type: item.itemType,
       ...(item.itemType === "diamond"
         ? { diamond_id: item.diamond_id }
         : { setting_id: item.setting_id }),
-      total_price: item.base_price,
+      total_price: price,
       ...item,
     });
     toast.success("Added to cart");
@@ -272,9 +328,16 @@ const Comparison = () => {
                             : item.name}
                         </h3>
 
-                        {/* Price */}
+                        {/* FIXED: Price - Show calculated price for diamonds */}
                         <div className="text-2xl font-bold text-primary-600 mb-4">
-                          {formatPrice(item.base_price)}
+                          {isDiamondComparison && pricingLoading[item.diamond_id] ? (
+                            <div className="flex items-center gap-1">
+                              <Loader className="h-4 w-4 animate-spin" />
+                              <span className="text-sm text-gray-600">Calculating...</span>
+                            </div>
+                          ) : (
+                            formatPrice(getDisplayPrice(item))
+                          )}
                         </div>
 
                         {/* Actions */}
@@ -327,16 +390,22 @@ const Comparison = () => {
               </thead>
 
               <tbody>
-                {/* Price Row - Highlighted */}
+                {/* FIXED: Price Row - Show calculated prices */}
                 <tr className="bg-primary-50 border-b border-gray-200">
                   <td className="sticky left-0 bg-primary-50 px-6 py-4 font-semibold text-gray-900">
-                    Price
+                    {isDiamondComparison ? 'Price (with quality)' : 'Price'}
                   </td>
                   {items.map((item, index) => (
                     <td key={index} className="px-6 py-4 text-center">
-                      <span className="text-xl font-bold text-primary-600">
-                        {formatPrice(item.base_price)}
-                      </span>
+                      {isDiamondComparison && pricingLoading[item.diamond_id] ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <Loader className="h-4 w-4 animate-spin text-primary-600" />
+                        </div>
+                      ) : (
+                        <span className="text-xl font-bold text-primary-600">
+                          {formatPrice(getDisplayPrice(item))}
+                        </span>
+                      )}
                     </td>
                   ))}
                   {[...Array(3 - items.length)].map((_, index) => (
@@ -412,8 +481,8 @@ const Comparison = () => {
               {isDiamondComparison
                 ? `${formatCarat(items[0].carat)} ${
                     items[0].shape
-                  } - ${formatPrice(items[0].base_price)}`
-                : `${items[0].name} - ${formatPrice(items[0].base_price)}`}
+                  } - ${formatPrice(getDisplayPrice(items[0]))}`
+                : `${items[0].name} - ${formatPrice(getDisplayPrice(items[0]))}`}
             </div>
           </div>
         )}

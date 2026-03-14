@@ -1,7 +1,7 @@
-// diamond-frontend/src/components/configurator/PriceBreakdown.jsx
+// diamond-frontend/src/components/configurator/PriceBreakdown.jsx - UPDATED
 
 import { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { formatPrice } from '../../utils/formatters';
 
@@ -13,7 +13,6 @@ const PriceBreakdown = ({ selectedDiamond, selectedSetting, ringSize }) => {
 
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
-  // Fetch real-time pricing whenever diamond, setting, or ring size changes
   useEffect(() => {
     if (selectedDiamond && selectedSetting) {
       calculatePricing();
@@ -25,7 +24,6 @@ const PriceBreakdown = ({ selectedDiamond, selectedSetting, ringSize }) => {
       setLoading(true);
       setError(null);
 
-      // Call backend pricing API
       const response = await axios.post(
         `${API_BASE_URL}/pricing/get-price-breakdown/`,
         {
@@ -38,7 +36,6 @@ const PriceBreakdown = ({ selectedDiamond, selectedSetting, ringSize }) => {
       if (response.data.success) {
         setBreakdown(response.data);
         
-        // Also fetch detailed pricing for debugging/display
         const pricingResponse = await axios.post(
           `${API_BASE_URL}/pricing/calculate-ring-price/`,
           {
@@ -52,17 +49,14 @@ const PriceBreakdown = ({ selectedDiamond, selectedSetting, ringSize }) => {
       }
     } catch (err) {
       console.error('Error calculating pricing:', err);
-      
-      // Fallback to simple calculation
+      setError('Failed to calculate price. Please try again.');
       fallbackPricing();
-      // Don't show error since we have fallback
     } finally {
       setLoading(false);
     }
   };
 
   const fallbackPricing = () => {
-    // Simple fallback if API fails
     const diamondPrice = parseFloat(selectedDiamond?.base_price || 0);
     const settingPrice = parseFloat(selectedSetting?.base_price || 0);
     
@@ -101,7 +95,7 @@ const PriceBreakdown = ({ selectedDiamond, selectedSetting, ringSize }) => {
           <DollarSign className="h-5 w-5 text-primary-600" />
           <h3 className="text-lg font-semibold text-gray-900">Price Breakdown</h3>
         </div>
-        <p className="text-sm text-gray-600">Real-time pricing with quality multipliers</p>
+        <p className="text-sm text-gray-600">Real-time pricing with quality multipliers (Same price at checkout)</p>
       </div>
 
       {/* Content */}
@@ -117,10 +111,19 @@ const PriceBreakdown = ({ selectedDiamond, selectedSetting, ringSize }) => {
             <div className="inline-block">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
             </div>
-            <p className="text-gray-600 mt-2">Calculating price...</p>
+            <p className="text-gray-600 mt-2">Calculating real price...</p>
           </div>
         ) : breakdown ? (
           <>
+            {/* Alert: Real Pricing */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex gap-3">
+              <AlertCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-green-800">
+                <p className="font-semibold mb-1">✓ Real Pricing Applied</p>
+                <p>This price includes quality adjustments for cut, color, and clarity. You'll pay the same at checkout.</p>
+              </div>
+            </div>
+
             {/* Items Breakdown */}
             <div className="space-y-4">
               {breakdown.items?.map((item, index) => (
@@ -152,33 +155,60 @@ const PriceBreakdown = ({ selectedDiamond, selectedSetting, ringSize }) => {
               </div>
             )}
 
-            {/* Pricing Details (if available from API) */}
+            {/* Quality Multipliers Explanation */}
             {pricing && (
-              <div className="bg-blue-50 rounded-lg p-4 space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-blue-700">Quality Multiplier (Cut + Color):</span>
-                  <span className="font-semibold text-blue-900">
-                    {pricing.quality_multiplier?.toFixed(2)}x
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-blue-700">Clarity Adjustment:</span>
-                  <span className="font-semibold text-blue-900">
-                    {pricing.clarity_adjustment?.toFixed(2)}x
-                  </span>
-                </div>
-                {pricing.size_premium && pricing.size_premium !== 1 && (
+              <div className="bg-blue-50 rounded-lg p-4 space-y-3 border border-blue-100">
+                <p className="text-sm font-semibold text-blue-900">💎 How Your Price Was Calculated</p>
+                
+                <div className="space-y-2 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-blue-700">Size Premium:</span>
-                    <span className="font-semibold text-blue-900">
-                      {pricing.size_premium?.toFixed(2)}x
+                    <span className="text-blue-700">Base Price (per carat):</span>
+                    <span className="font-mono text-blue-900">
+                      ${parseFloat(selectedDiamond.base_price).toFixed(2)}
                     </span>
                   </div>
-                )}
+                  
+                  <div className="flex justify-between">
+                    <span className="text-blue-700">× Carat Weight:</span>
+                    <span className="font-mono text-blue-900">
+                      {selectedDiamond.carat}ct
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-blue-700">× Quality Factor (Cut + Color):</span>
+                    <span className="font-mono text-blue-900">
+                      {pricing.quality_multiplier?.toFixed(2)}x ({selectedDiamond.cut} {selectedDiamond.color})
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-blue-700">× Clarity Adjustment:</span>
+                    <span className="font-mono text-blue-900">
+                      {pricing.clarity_adjustment?.toFixed(2)}x ({selectedDiamond.clarity})
+                    </span>
+                  </div>
+
+                  {pricing.size_premium && pricing.size_premium !== 1 && (
+                    <div className="flex justify-between">
+                      <span className="text-blue-700">× Size Premium:</span>
+                      <span className="font-mono text-blue-900">
+                        {pricing.size_premium?.toFixed(2)}x
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="border-t border-blue-200 pt-2 flex justify-between font-semibold">
+                    <span className="text-blue-900">= Diamond Price:</span>
+                    <span className="font-mono text-blue-900">
+                      {formatPrice(pricing.diamond_price)}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Subtotal */}
+            {/* Subtotal & Total */}
             <div className="border-t-2 border-gray-200 pt-4 space-y-2">
               <div className="flex justify-between">
                 <span className="text-gray-600">Subtotal</span>
@@ -188,31 +218,27 @@ const PriceBreakdown = ({ selectedDiamond, selectedSetting, ringSize }) => {
               </div>
             </div>
 
-            {/* Total */}
+            {/* Final Total */}
             <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg p-4 border border-primary-200">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary-600" />
-                  <span className="font-semibold text-gray-900">Estimated Total</span>
+                  <span className="font-semibold text-gray-900">Total Price</span>
                 </div>
-                <span className="text-2xl font-bold text-primary-600">
+                <span className="text-3xl font-bold text-primary-600">
                   {formatPrice(breakdown.total)}
                 </span>
               </div>
-              <p className="text-xs text-gray-600 mt-2">
-                ✓ Price includes quality multipliers for 4Cs
+              <p className="text-xs text-gray-600">
+                ✓ This is the price you will pay at checkout
               </p>
             </div>
 
-            {/* Info */}
-            <div className="text-xs text-gray-500 space-y-1">
-              <p>💎 Diamond price calculated with:</p>
-              <ul className="list-disc list-inside ml-2">
-                <li>Cut quality premium</li>
-                <li>Color grade adjustment</li>
-                <li>Clarity impact</li>
-                <li>Size premium (if applicable)</li>
-              </ul>
+            {/* Trust Message */}
+            <div className="text-center">
+              <p className="text-xs text-gray-600">
+                🔒 <strong>100% Transparent Pricing</strong> - No hidden fees, no surprises at checkout
+              </p>
             </div>
           </>
         ) : null}
