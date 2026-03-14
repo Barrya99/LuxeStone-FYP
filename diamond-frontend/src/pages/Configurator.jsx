@@ -4,6 +4,7 @@ import ProgressStepper from '../components/configurator/ProgressStepper';
 import StepOneDiamond from '../components/configurator/StepOneDiamond';
 import StepTwoSetting from '../components/configurator/StepTwoSetting';
 import StepThreeCustomize from '../components/configurator/StepThreeCustomize';
+import PriceBreakdown from '../components/configurator/PriceBreakdown';
 
 const Configurator = () => {
   const {
@@ -11,6 +12,7 @@ const Configurator = () => {
     selectedDiamond,
     selectedSetting,
     budget,
+    ringSize,
     selectDiamond,
     selectSetting,
     setStep,
@@ -92,6 +94,11 @@ const Configurator = () => {
             onBack={handleBackFromStep3}
           />
         )}
+        <PriceBreakdown 
+  selectedDiamond={selectedDiamond}
+  selectedSetting={selectedSetting}
+  ringSize={ringSize}
+/>
       </div>
     </div>
   );

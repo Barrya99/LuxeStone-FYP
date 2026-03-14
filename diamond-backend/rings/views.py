@@ -5,7 +5,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Avg, Count
-
+from .services.pricing import PricingEngine
+from .models import Diamond, Setting
 from .models import (
     User, Diamond, Setting, RingConfiguration,
     Favorite, Review, Order, OrderItem, UserInteraction
@@ -24,7 +25,258 @@ from .serializers import (
 # ============================================
 # USER VIEWSET
 # ============================================
-
+class PricingViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for diamond and ring price calculations
+    """
+    queryset = Diamond.objects.all()
+    serializer_class = DiamondListSerializer
+    
+    @action(detail=False, methods=['post'], url_path='calculate-diamond-price')
+    def calculate_diamond_price(self, request):
+        """
+        Calculate real-time diamond price based on 4Cs
+        
+        Request body:
+        {
+            "diamond_id": 123
+        }
+        
+        Response:
+        {
+            "diamond_id": 123,
+            "base_price_per_carat": 3500.00,
+            "carat": 1.5,
+            "cut": "Excellent",
+            "color": "D",
+            "clarity": "VS1",
+            "quality_multiplier": 1.13,
+            "clarity_adjustment": 1.01,
+            "size_premium": 1.0,
+            "calculated_price": 5954.25,
+            "success": true
+        }
+        """
+        try:
+            diamond_id = request.data.get('diamond_id')
+            
+            if not diamond_id:
+                return Response(
+                    {'error': 'diamond_id is required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Fetch diamond
+            diamond = Diamond.objects.get(diamond_id=diamond_id)
+            
+            # Calculate price
+            calculated_price = PricingEngine.calculate_diamond_price(diamond)
+            
+            # Get multipliers for response
+            quality_mult = PricingEngine.get_quality_multiplier(
+                diamond.cut, diamond.color
+            )
+            clarity_adj = PricingEngine.get_clarity_adjustment(diamond.clarity)
+            size_premium = PricingEngine.get_size_premium(diamond.carat, diamond.shape)
+            
+            return Response({
+                'diamond_id': diamond.diamond_id,
+                'sku': diamond.sku,
+                'base_price_per_carat': float(diamond.base_price),
+                'carat': float(diamond.carat),
+                'cut': diamond.cut,
+                'color': diamond.color,
+                'clarity': diamond.clarity,
+                'shape': diamond.shape,
+                'quality_multiplier': float(quality_mult),
+                'clarity_adjustment': float(clarity_adj),
+                'size_premium': float(size_premium),
+                'calculated_price': float(calculated_price),
+                'success': True
+            })
+            
+        except Diamond.DoesNotExist:
+            return Response(
+                {'error': 'Diamond not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'], url_path='calculate-ring-price')
+    def calculate_ring_price(self, request):
+        """
+        Calculate complete ring price (diamond + setting + customizations)
+        
+        Request body:
+        {
+            "diamond_id": 123,
+            "setting_id": 45,
+            "ring_size": "7",
+            "customizations": {
+                "engraving": 100,
+                "band_upgrade": 200
+            }
+        }
+        
+        Response:
+        {
+            "diamond_price": 5954.25,
+            "setting_price": 1200.00,
+            "ring_size_surcharge": 50.00,
+            "customization_total": 300.00,
+            "subtotal": 7504.25,
+            "total": 7504.25,
+            "success": true
+        }
+        """
+        try:
+            diamond_id = request.data.get('diamond_id')
+            setting_id = request.data.get('setting_id')
+            ring_size = request.data.get('ring_size')
+            customizations = request.data.get('customizations', {})
+            
+            if not diamond_id or not setting_id:
+                return Response(
+                    {'error': 'diamond_id and setting_id are required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Fetch models
+            diamond = Diamond.objects.get(diamond_id=diamond_id)
+            setting = Setting.objects.get(setting_id=setting_id)
+            
+            # Get multipliers for response
+            quality_mult = PricingEngine.get_quality_multiplier(diamond.cut, diamond.color)
+            clarity_adj = PricingEngine.get_clarity_adjustment(diamond.clarity)
+            size_premium = PricingEngine.get_size_premium(diamond.carat, diamond.shape)
+            
+            # Calculate price
+            pricing = PricingEngine.calculate_ring_price(
+                diamond, setting, ring_size, customizations
+            )
+            
+            return Response({
+                'diamond_id': diamond.diamond_id,
+                'setting_id': setting.setting_id,
+                'ring_size': ring_size,
+                'diamond_price': float(pricing['diamond_price']),
+                'setting_price': float(pricing['setting_price']),
+                'ring_size_surcharge': float(pricing['ring_size_surcharge']),
+                'customization_total': float(pricing['customization_total']),
+                'subtotal': float(pricing['subtotal']),
+                'total': float(pricing['total']),
+                'quality_multiplier': float(quality_mult),
+                'clarity_adjustment': float(clarity_adj),
+                'size_premium': float(size_premium),
+                'success': True
+            })
+            
+        except Diamond.DoesNotExist:
+            return Response(
+                {'error': 'Diamond not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Setting.DoesNotExist:
+            return Response(
+                {'error': 'Setting not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=False, methods=['post'], url_path='get-price-breakdown')
+    def get_price_breakdown(self, request):
+        """
+        Get human-readable price breakdown for UI display
+        
+        Request body:
+        {
+            "diamond_id": 123,
+            "setting_id": 45,
+            "ring_size": "7"
+        }
+        
+        Response:
+        {
+            "items": [
+                {
+                    "name": "1.5ct Round Diamond",
+                    "description": "Excellent Cut, D Color, VS1 Clarity",
+                    "price": 5954.25
+                },
+                {
+                    "name": "Solitaire Setting",
+                    "description": "18K White Gold Setting",
+                    "price": 1200.00
+                }
+            ],
+            "surcharges": [
+                {
+                    "name": "Ring Size Surcharge (Size 7)",
+                    "price": 0.00
+                }
+            ],
+            "subtotal": 7154.25,
+            "total": 7154.25,
+            "success": true
+        }
+        """
+        try:
+            diamond_id = request.data.get('diamond_id')
+            setting_id = request.data.get('setting_id')
+            ring_size = request.data.get('ring_size')
+            
+            if not diamond_id or not setting_id:
+                return Response(
+                    {'error': 'diamond_id and setting_id are required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Fetch models
+            diamond = Diamond.objects.get(diamond_id=diamond_id)
+            setting = Setting.objects.get(setting_id=setting_id)
+            
+            # Get breakdown
+            breakdown = PricingEngine.get_price_breakdown(
+                diamond, setting, ring_size
+            )
+            
+            # Add surcharges to response
+            surcharges = []
+            ring_surcharge = PricingEngine.calculate_ring_size_surcharge(ring_size)
+            if ring_surcharge > 0:
+                surcharges.append({
+                    'name': f'Ring Size Surcharge (Size {ring_size})',
+                    'price': float(ring_surcharge)
+                })
+            
+            breakdown['surcharges'] = surcharges
+            breakdown['success'] = True
+            
+            return Response(breakdown)
+            
+        except Diamond.DoesNotExist:
+            return Response(
+                {'error': 'Diamond not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Setting.DoesNotExist:
+            return Response(
+                {'error': 'Setting not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 class UserViewSet(viewsets.ModelViewSet):
     """
     API endpoint for users

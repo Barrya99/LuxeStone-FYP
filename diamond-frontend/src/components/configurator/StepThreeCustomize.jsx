@@ -7,6 +7,7 @@ import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { useNavigate } from 'react-router-dom';
 import Button from '../common/Button';
 import toast from 'react-hot-toast';
+import PriceBreakdown from './PriceBreakdown';
 
 const StepThreeCustomize = ({ selectedDiamond, selectedSetting, onBack }) => {
   const navigate = useNavigate();
@@ -141,67 +142,11 @@ const StepThreeCustomize = ({ selectedDiamond, selectedSetting, onBack }) => {
           </div>
 
           {/* Configuration Summary */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Your Configuration</h3>
-            
-            {/* Diamond */}
-            <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-100">
-              <div className="flex-1">
-                <div className="font-medium text-gray-900 mb-1">Diamond</div>
-                <div className="text-sm text-gray-600">
-                  {formatCarat(selectedDiamond?.carat)} {selectedDiamond?.shape}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {selectedDiamond?.cut} • {selectedDiamond?.color} • {selectedDiamond?.clarity}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-bold text-gray-900">
-                  {formatPrice(diamondPrice)}
-                </div>
-                <button 
-                  onClick={onBack}
-                  className="text-xs text-primary-600 hover:underline mt-1"
-                >
-                  Change
-                </button>
-              </div>
-            </div>
-
-            {/* Setting */}
-            <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-100">
-              <div className="flex-1">
-                <div className="font-medium text-gray-900 mb-1">Setting</div>
-                <div className="text-sm text-gray-600">
-                  {selectedSetting?.name}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {selectedSetting?.style_type} • {selectedSetting?.metal_type}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-bold text-gray-900">
-                  {formatPrice(settingPrice)}
-                </div>
-                <button 
-                  onClick={onBack}
-                  className="text-xs text-primary-600 hover:underline mt-1"
-                >
-                  Change
-                </button>
-              </div>
-            </div>
-
-            {/* Total */}
-            <div className="flex justify-between items-center pt-4 border-t-2 border-gray-200">
-              <div className="font-display text-lg font-bold text-gray-900">
-                Total Price
-              </div>
-              <div className="text-3xl font-bold text-primary-600">
-                {formatPrice(totalPrice)}
-              </div>
-            </div>
-          </div>
+          <PriceBreakdown 
+            selectedDiamond={selectedDiamond}
+            selectedSetting={selectedSetting}
+            ringSize={ringSize}
+          />
 
           {/* What's Included */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">

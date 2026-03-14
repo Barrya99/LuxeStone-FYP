@@ -87,4 +87,24 @@ export const interactionAPI = {
   getSummary: (params) => api.get('/interactions/analytics_summary/', { params }),
 };
 
+export const pricingAPI = {
+  calculateDiamondPrice: (diamondId) => 
+    api.post('/pricing/calculate-diamond-price/', { diamond_id: diamondId }),
+  
+  calculateRingPrice: (diamondId, settingId, ringSize, customizations) =>
+    api.post('/pricing/calculate-ring-price/', {
+      diamond_id: diamondId,
+      setting_id: settingId,
+      ring_size: ringSize,
+      customizations: customizations || {}
+    }),
+  
+  getPriceBreakdown: (diamondId, settingId, ringSize) =>
+    api.post('/pricing/get-price-breakdown/', {
+      diamond_id: diamondId,
+      setting_id: settingId,
+      ring_size: ringSize
+    })
+};
+
 export default api;
