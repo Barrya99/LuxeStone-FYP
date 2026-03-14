@@ -1,11 +1,10 @@
-// diamond-frontend/src/pages/Account.jsx - FIXED (without useAuthStore)
+// diamond-frontend/src/pages/Account.jsx - UPDATED (using correct API)
 
 import { useState, useEffect } from 'react';
 import { Heart, Eye, ShoppingCart, LogOut, Loader } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useFavoritesStore } from '../store/useFavoritesStore';
 import { useCartStore } from '../store/useCartStore';
-import { orderAPI } from '../services/api';
 import { formatPrice, formatCarat } from '../utils/formatters';
 import Button from '../components/common/Button';
 import axios from 'axios';
@@ -19,7 +18,7 @@ const Account = () => {
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [activeTab, setActiveTab] = useState('orders');
   
-  // FIXED: State for calculated prices
+  // State for calculated prices
   const [favoritePrices, setFavoritePrices] = useState({});
   const [pricingLoading, setPricingLoading] = useState({});
 
@@ -27,7 +26,7 @@ const Account = () => {
 
   useEffect(() => {
     fetchOrders();
-    // FIXED: Calculate prices for diamond favorites
+    // Calculate prices for diamond favorites
     if (favorites.length > 0) {
       calculateFavoritePrices();
     }
@@ -36,17 +35,34 @@ const Account = () => {
   const fetchOrders = async () => {
     try {
       setLoadingOrders(true);
-      const response = await orderAPI.getMyOrders();
-      setOrders(response.data.results || []);
+      const token = localStorage.getItem('auth_token');
+      
+      // Fetch from backend API
+      const response = await axios.get(
+        `${API_BASE_URL}/orders/`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      // Handle both paginated and direct array response
+      const ordersData = response.data.results || response.data || [];
+      setOrders(Array.isArray(ordersData) ? ordersData : []);
+      
     } catch (error) {
       console.error('Error fetching orders:', error);
+      // Show error but don't crash
       toast.error('Failed to load orders');
+      setOrders([]);
     } finally {
       setLoadingOrders(false);
     }
   };
 
-  // FIXED: Calculate real prices for diamond favorites
+  // Calculate real prices for diamond favorites
   const calculateFavoritePrices = async () => {
     try {
       const diamondFavorites = favorites.filter(f => f.type === 'diamond');
@@ -84,7 +100,7 @@ const Account = () => {
     }
   };
 
-  // FIXED: Get display price for favorites
+  // Get display price for favorites
   const getDisplayPrice = (favorite) => {
     if (favorite.type === 'diamond') {
       return favoritePrices[favorite.id] || parseFloat(favorite.base_price);
@@ -111,8 +127,8 @@ const Account = () => {
   };
 
   const handleLogout = () => {
-    // Clear auth and redirect
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
     toast.success('Logged out successfully');
     navigate('/');
   };
@@ -198,7 +214,7 @@ const Account = () => {
                     className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
                   >
                     <div className="p-6">
-                      <div className="flex items-center justify-between mb-4">
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
                         <div>
                           <p className="text-sm text-gray-500">Order #</p>
                           <p className="font-semibold text-gray-900">
@@ -214,7 +230,7 @@ const Account = () => {
                         <div>
                           <p className="text-sm text-gray-500">Status</p>
                           <span
-                            className={`px-3 py-1 rounded-full text-sm font-medium bg-${
+                            className={`inline-block px-3 py-1 rounded-full text-sm font-medium bg-${
                               ORDER_STATUS[order.status]?.color || 'gray'
                             }-100 text-${
                               ORDER_STATUS[order.status]?.color || 'gray'
@@ -223,7 +239,13 @@ const Account = () => {
                             {ORDER_STATUS[order.status]?.label || order.status}
                           </span>
                         </div>
-                        <div className="text-right">
+                        <div>
+                          <p className="text-sm text-gray-500">Items</p>
+                          <p className="font-semibold text-gray-900">
+                            {order.items?.length || 0}
+                          </p>
+                        </div>
+                        <div>
                           <p className="text-sm text-gray-500">Total</p>
                           <p className="font-bold text-gray-900">
                             {formatPrice(order.total_amount)}
@@ -232,9 +254,41 @@ const Account = () => {
                       </div>
 
                       {/* Order Items */}
-                      <div className="border-t border-gray-100 pt-4">
-                        <div className="text-sm text-gray-600 mb-2">
-                          {order.items?.length || 0} item(s)
+                      {order.items && order.items.length > 0 && (
+                        <div className="border-t border-gray-100 pt-4">
+                          <p className="text-sm font-medium text-gray-900 mb-3">Items in Order:</p>
+                          <div className="space-y-2">
+                            {order.items.map((item, idx) => (
+                              <div key={idx} className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                                <p>• {item.item_description || 'Ring'}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Ring Size: {item.ring_size} | 
+                                  Diamond: ${item.diamond_price?.toFixed(2)} | 
+                                  Setting: ${item.setting_price?.toFixed(2)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Order Summary */}
+                      <div className="border-t border-gray-100 mt-4 pt-4 text-sm">
+                        <div className="flex justify-between mb-2">
+                          <span className="text-gray-600">Subtotal:</span>
+                          <span className="font-medium">{formatPrice(order.subtotal)}</span>
+                        </div>
+                        <div className="flex justify-between mb-2">
+                          <span className="text-gray-600">Tax:</span>
+                          <span className="font-medium">{formatPrice(order.tax_amount)}</span>
+                        </div>
+                        <div className="flex justify-between mb-2">
+                          <span className="text-gray-600">Shipping:</span>
+                          <span className="font-medium">{formatPrice(order.shipping_cost)}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-gray-100 pt-2 font-semibold">
+                          <span>Total:</span>
+                          <span className="text-primary-600">{formatPrice(order.total_amount)}</span>
                         </div>
                       </div>
                     </div>
@@ -312,7 +366,7 @@ const Account = () => {
                         )}
                       </div>
 
-                      {/* FIXED: Price */}
+                      {/* Price */}
                       <div className="text-2xl font-bold text-primary-600">
                         {pricingLoading[item.id] ? (
                           <div className="flex items-center gap-1">
