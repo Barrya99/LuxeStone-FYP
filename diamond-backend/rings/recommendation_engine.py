@@ -1,6 +1,6 @@
-from django.db.models import Q, Avg,Count
+
+from django.db.models import Q, Avg, Count
 from .models import Diamond, Setting, RingConfiguration, Favorite, Review, UserInteraction
-import numpy as np
 from datetime import timedelta
 from django.utils import timezone
 
@@ -59,13 +59,18 @@ class RecommendationEngine:
         2. Average rating
         3. Number of times added to cart
         """
-        trending = Diamond.objects.filter(is_available=True).annotate(
-            review_count=Count('review'),
-            avg_rating=Avg('review__rating'),
-            interaction_count=Count('userinteraction')
-        ).order_by('-interaction_count', '-avg_rating')[:limit]
-        
-        return list(trending)
+        try:
+            trending = Diamond.objects.filter(is_available=True).annotate(
+                review_count=Count('review'),
+                avg_rating=Avg('review__rating'),
+                interaction_count=Count('userinteraction')
+            ).order_by('-interaction_count', '-avg_rating')[:limit]
+            
+            return list(trending)
+        except Exception as e:
+            print(f"Error in get_trending_diamonds: {e}")
+            # Fallback to just returning by rating if available
+            return Diamond.objects.filter(is_available=True).order_by('-base_price')[:limit]
     
     def get_similar_diamonds(self, diamond_id, limit=5):
         """
@@ -83,8 +88,8 @@ class RecommendationEngine:
         similar = Diamond.objects.filter(
             is_available=True,
             shape=diamond.shape,
-            carat__gte=diamond.carat - 0.5,
-            carat__lte=diamond.carat + 0.5,
+            carat__gte=float(diamond.carat) - 0.5,
+            carat__lte=float(diamond.carat) + 0.5,
         ).exclude(diamond_id=diamond_id)
         
         # Score by similarity
@@ -92,9 +97,9 @@ class RecommendationEngine:
         for d in similar:
             score = 0
             # Carat similarity
-            score += (1 - abs(d.carat - diamond.carat) / 5) * 30
+            score += (1 - abs(float(d.carat) - float(diamond.carat)) / 5) * 30
             # Price similarity
-            price_diff = abs(d.base_price - diamond.base_price)
+            price_diff = abs(float(d.base_price) - float(diamond.base_price))
             score += (1 - min(price_diff / 10000, 1)) * 30
             # Cut grade match
             if d.cut == diamond.cut:
@@ -112,34 +117,45 @@ class RecommendationEngine:
         Get highest quality diamonds within budget
         Scores based on quality metrics (cut, clarity, color)
         """
-        diamonds = Diamond.objects.filter(
-            is_available=True,
-            base_price__lte=max_price
-        )
-        
-        scored = []
-        quality_order = {'Excellent': 4, 'Very Good': 3, 'Good': 2, 'Fair': 1}
-        color_order = {chr(i): 5 - (i - ord('D')) // 3 for i in range(ord('D'), ord('Z') + 1)}
-        
-        for d in diamonds:
-            score = 0
-            # Cut quality
-            score += quality_order.get(d.cut, 0) * 25
-            # Color quality
-            score += color_order.get(d.color, 0) * 25
-            # Clarity
-            if d.clarity in ['IF', 'VVS1', 'VVS2']:
-                score += 25
-            elif d.clarity in ['VS1', 'VS2']:
-                score += 20
-            else:
-                score += 10
-            # Carat bonus
-            score += min(d.carat * 10, 25)
+        try:
+            max_price = float(max_price)
             
-            scored.append({'diamond': d, 'score': score})
-        
-        return [s['diamond'] for s in sorted(scored, key=lambda x: x['score'], reverse=True)[:limit]]
+            diamonds = Diamond.objects.filter(
+                is_available=True,
+                base_price__lte=max_price
+            )
+            
+            if not diamonds.exists():
+                # Return empty list instead of error
+                return []
+            
+            scored = []
+            quality_order = {'Excellent': 4, 'Very Good': 3, 'Good': 2, 'Fair': 1}
+            
+            for d in diamonds:
+                score = 0
+                # Cut quality
+                score += quality_order.get(d.cut, 0) * 25
+                # Carat bonus
+                score += float(d.carat) * 10
+                # Rating if available
+                try:
+                    avg_rating = Review.objects.filter(diamond=d).aggregate(
+                        avg=Avg('rating')
+                    )['avg']
+                    if avg_rating:
+                        score += avg_rating * 10
+                except:
+                    pass
+                
+                scored.append({'diamond': d, 'score': score})
+            
+            sorted_diamonds = sorted(scored, key=lambda x: x['score'], reverse=True)
+            return [s['diamond'] for s in sorted_diamonds[:limit]]
+            
+        except Exception as e:
+            print(f"Error in get_budget_friendly_diamonds: {e}")
+            return []
     
     # ============================================
     # SETTING RECOMMENDATIONS
@@ -174,12 +190,16 @@ class RecommendationEngine:
         2. Number of reviews
         3. Average rating
         """
-        popular = Setting.objects.filter(is_available=True).annotate(
-            review_count=Count('review'),
-            avg_rating=Avg('review__rating')
-        ).order_by('-popularity_score', '-avg_rating')[:limit]
-        
-        return list(popular)
+        try:
+            popular = Setting.objects.filter(is_available=True).annotate(
+                review_count=Count('review'),
+                avg_rating=Avg('review__rating')
+            ).order_by('-popularity_score', '-avg_rating')[:limit]
+            
+            return list(popular)
+        except Exception as e:
+            print(f"Error in get_popular_settings: {e}")
+            return Setting.objects.filter(is_available=True).order_by('-popularity_score')[:limit]
     
     def get_settings_for_diamond(self, diamond_id, limit=5):
         """
@@ -210,35 +230,24 @@ class RecommendationEngine:
         Get recommended diamond + setting combinations
         Based on popular configurations and user preferences
         """
-        configs = RingConfiguration.objects.filter(
-            is_saved=True,
-            diamond__isnull=False,
-            setting__isnull=False
-        ).select_related('diamond', 'setting').annotate(
-            rating=Avg('diamond__review__rating')
-        ).order_by('-created_at')[:limit]
-        
-        combinations = []
-        for c in configs:
-            try:
-                combinations.append({
-                    'diamond': c.diamond,
-                    'setting': c.setting,
-                    'total_price': float(c.total_price) if c.total_price else 0,
-                    'popularity': Favorite.objects.filter(config=c).count()
-                })
-            except Exception:
-                # Skip invalid combinations
-                continue
-        
-        return combinations
+        try:
+            configs = RingConfiguration.objects.filter(
+                is_saved=True
+            ).select_related('diamond', 'setting').order_by('-created_at')[:limit]
+            
+            return [{
+                'diamond': c.diamond,
+                'setting': c.setting,
+                'total_price': c.total_price,
+                'popularity': Favorite.objects.filter(config=c).count()
+            } for c in configs if c.diamond and c.setting]
+        except Exception as e:
+            print(f"Error in get_recommended_combinations: {e}")
+            return []
     
     def get_next_step_recommendations(self, diamond=None, setting=None):
         """
-        Smart recommendations based on configurator progress:
-        - If user chose diamond → recommend settings
-        - If user chose setting → recommend diamonds
-        - If user chose both → recommend ring sizes
+        Smart recommendations based on configurator progress
         """
         if diamond and not setting:
             return {
@@ -277,38 +286,41 @@ class RecommendationEngine:
         if not self.user:
             return prefs
         
-        # Get user's favorites
-        favorites = Favorite.objects.filter(user=self.user).select_related('diamond', 'setting')
-        
-        cuts = []
-        colors = []
-        metals = []
-        styles = []
-        prices = []
-        
-        for fav in favorites:
-            if fav.diamond:
-                cuts.append(fav.diamond.cut)
-                colors.append(fav.diamond.color)
-                prices.append(float(fav.diamond.base_price))
-            if fav.setting:
-                metals.append(fav.setting.metal_type)
-                styles.append(fav.setting.style_type)
-        
-        # Get most common preferences
-        if cuts:
-            prefs['preferred_cuts'] = list(set(cuts))
-        if colors:
-            prefs['preferred_colors'] = list(set(colors))
-        if metals:
-            prefs['preferred_metals'] = list(set(metals))
-        if styles:
-            prefs['preferred_styles'] = list(set(styles))
-        
-        # Set budget based on previous interactions
-        if prices:
-            prefs['max_budget'] = max(prices) * 1.2  # 20% more than highest liked
-            prefs['min_budget'] = min(prices) * 0.8  # 20% less than lowest liked
+        try:
+            # Get user's favorites
+            favorites = Favorite.objects.filter(user=self.user).select_related('diamond', 'setting')
+            
+            cuts = []
+            colors = []
+            metals = []
+            styles = []
+            prices = []
+            
+            for fav in favorites:
+                if fav.diamond:
+                    cuts.append(fav.diamond.cut)
+                    colors.append(fav.diamond.color)
+                    prices.append(float(fav.diamond.base_price))
+                if fav.setting:
+                    metals.append(fav.setting.metal_type)
+                    styles.append(fav.setting.style_type)
+            
+            # Get most common preferences
+            if cuts:
+                prefs['preferred_cuts'] = list(set(cuts))
+            if colors:
+                prefs['preferred_colors'] = list(set(colors))
+            if metals:
+                prefs['preferred_metals'] = list(set(metals))
+            if styles:
+                prefs['preferred_styles'] = list(set(styles))
+            
+            # Set budget based on previous interactions
+            if prices:
+                prefs['max_budget'] = max(prices) * 1.2
+                prefs['min_budget'] = min(prices) * 0.8
+        except Exception as e:
+            print(f"Error in _get_user_preferences: {e}")
         
         return prefs
     
@@ -316,33 +328,40 @@ class RecommendationEngine:
         """Score diamonds based on user preferences"""
         scored = []
         
-        for diamond in diamonds:
-            score = 0
-            
-            # Quality scores
-            quality_order = {'Excellent': 10, 'Very Good': 8, 'Good': 6, 'Fair': 4}
-            score += quality_order.get(diamond.cut, 5) * 20
-            
-            # Carat score (prefer user's typical carat)
-            if user_prefs.get('preferred_carats'):
-                if diamond.carat in user_prefs['preferred_carats']:
-                    score += 20
-            
-            # Rating score
-            avg_rating = Review.objects.filter(diamond=diamond).aggregate(
-                avg=Avg('rating')
-            )['avg']
-            if avg_rating:
-                score += avg_rating * 10
-            
-            # Trending score
-            recent_interactions = UserInteraction.objects.filter(
-                diamond=diamond,
-                created_at__gte=timezone.now() - timedelta(days=7)
-            ).count()
-            score += min(recent_interactions * 5, 30)
-            
-            scored.append({'diamond': diamond, 'score': score})
+        try:
+            for diamond in diamonds:
+                score = 0
+                
+                # Quality scores
+                quality_order = {'Excellent': 10, 'Very Good': 8, 'Good': 6, 'Fair': 4}
+                score += quality_order.get(diamond.cut, 5) * 20
+                
+                # Carat score
+                score += float(diamond.carat) * 5
+                
+                # Rating score
+                try:
+                    avg_rating = Review.objects.filter(diamond=diamond).aggregate(
+                        avg=Avg('rating')
+                    )['avg']
+                    if avg_rating:
+                        score += avg_rating * 10
+                except:
+                    pass
+                
+                # Trending score
+                try:
+                    recent_interactions = UserInteraction.objects.filter(
+                        diamond=diamond,
+                        created_at__gte=timezone.now() - timedelta(days=7)
+                    ).count()
+                    score += min(recent_interactions * 5, 30)
+                except:
+                    pass
+                
+                scored.append({'diamond': diamond, 'score': score})
+        except Exception as e:
+            print(f"Error in _score_diamonds: {e}")
         
         return scored
     
@@ -350,60 +369,60 @@ class RecommendationEngine:
         """Score settings based on user preferences"""
         scored = []
         
-        for setting in settings:
-            score = 0
-            
-            # Popularity score
-            score += setting.popularity_score * 0.5
-            
-            # Rating score
-            avg_rating = Review.objects.filter(setting=setting).aggregate(
-                avg=Avg('rating')
-            )['avg']
-            if avg_rating:
-                score += avg_rating * 10
-            
-            # User preference match
-            if setting.metal_type in user_prefs.get('preferred_metals', []):
-                score += 25
-            if setting.style_type in user_prefs.get('preferred_styles', []):
-                score += 25
-            
-            scored.append({'setting': setting, 'score': score})
+        try:
+            for setting in settings:
+                score = 0
+                
+                # Popularity score
+                score += (setting.popularity_score or 0) * 0.5
+                
+                # Rating score
+                try:
+                    avg_rating = Review.objects.filter(setting=setting).aggregate(
+                        avg=Avg('rating')
+                    )['avg']
+                    if avg_rating:
+                        score += avg_rating * 10
+                except:
+                    pass
+                
+                # User preference match
+                if setting.metal_type in user_prefs.get('preferred_metals', []):
+                    score += 25
+                if setting.style_type in user_prefs.get('preferred_styles', []):
+                    score += 25
+                
+                scored.append({'setting': setting, 'score': score})
+        except Exception as e:
+            print(f"Error in _score_settings: {e}")
         
         return scored
 
 
 # Export for views
 def get_recommendations(user=None, recommendation_type='personalized', **kwargs):
-    """
-    Convenience function to get recommendations
-    
-    Types:
-    - personalized: Get all personalized recs for user
-    - trending: Get trending diamonds
-    - budget: Get budget-friendly diamonds
-    - similar: Get similar diamonds to one specified
-    - settings: Get recommended settings
-    - combinations: Get recommended diamond+setting combos
-    """
+    """Convenience function to get recommendations"""
     engine = RecommendationEngine(user=user)
     
-    if recommendation_type == 'personalized':
-        return {
-            'diamonds': engine.get_personalized_diamonds(10),
-            'settings': engine.get_personalized_settings(10),
-            'combinations': engine.get_recommended_combinations(5),
-        }
-    elif recommendation_type == 'trending':
-        return engine.get_trending_diamonds(10)
-    elif recommendation_type == 'budget':
-        return engine.get_budget_friendly_diamonds(kwargs.get('max_price', 5000), 10)
-    elif recommendation_type == 'similar':
-        return engine.get_similar_diamonds(kwargs.get('diamond_id'), 5)
-    elif recommendation_type == 'settings':
-        return engine.get_personalized_settings(10)
-    elif recommendation_type == 'combinations':
-        return engine.get_recommended_combinations(10)
+    try:
+        if recommendation_type == 'personalized':
+            return {
+                'diamonds': engine.get_personalized_diamonds(10),
+                'settings': engine.get_personalized_settings(10),
+                'combinations': engine.get_recommended_combinations(5),
+            }
+        elif recommendation_type == 'trending':
+            return engine.get_trending_diamonds(10)
+        elif recommendation_type == 'budget':
+            return engine.get_budget_friendly_diamonds(kwargs.get('max_price', 5000), 10)
+        elif recommendation_type == 'similar':
+            return engine.get_similar_diamonds(kwargs.get('diamond_id'), 5)
+        elif recommendation_type == 'settings':
+            return engine.get_personalized_settings(10)
+        elif recommendation_type == 'combinations':
+            return engine.get_recommended_combinations(10)
+    except Exception as e:
+        print(f"Error in get_recommendations: {e}")
+        return {}
     
     return {}
