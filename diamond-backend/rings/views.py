@@ -20,6 +20,10 @@ from .serializers import (
     OrderDetailSerializer, OrderCreateSerializer, UserInteractionSerializer,
     UserInteractionCreateSerializer
 )
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from .recommendation_engine import RecommendationEngine, get_recommendations
 
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -651,284 +655,233 @@ class UserInteractionViewSet(viewsets.ModelViewSet):
         }
         
         return Response(summary)
-# 🔴 ADD THIS TO THE END OF diamond-backend/rings/views.py
-# Copy everything below and paste at the very end of your views.py file
 
 # ============================================
-# RECOMMENDATION VIEWSET
+# RECOMMENDATION VIEWSET - MODELVIEWSET
 # ============================================
 
-class RecommendationViewSet(viewsets.ViewSet):
-    """
-    API endpoints for AI-powered recommendations
-    
-    Endpoints:
-    - GET /api/recommendations/personalized/ - Get all personalized recommendations
-    - GET /api/recommendations/trending/ - Get trending diamonds
-    - GET /api/recommendations/budget/ - Get budget-friendly diamonds
-    - GET /api/recommendations/similar/ - Get similar diamonds
-    - GET /api/recommendations/settings/ - Get recommended settings
-    - GET /api/recommendations/combinations/ - Get diamond+setting combinations
-    - GET /api/recommendations/next-step/ - Get next step recommendations in configurator
-    """
-    
+class RecommendationViewSet(viewsets.ModelViewSet):
+    """API endpoints for AI-powered recommendations"""
     permission_classes = [AllowAny]
+    queryset = Diamond.objects.all()
+    serializer_class = DiamondListSerializer
     
     def list(self, request):
-        """List all recommendation endpoints"""
+        """List available recommendation endpoints"""
         return Response({
             'success': True,
-            'message': 'Recommendation API endpoints available',
+            'message': 'Recommendation API Endpoints',
             'endpoints': {
+                'trending': '/api/recommendations/trending/',
                 'personalized': '/api/recommendations/personalized/',
-                'trending': '/api/recommendations/trending/?limit=10',
-                'budget': '/api/recommendations/budget/?max_price=50000&limit=10',
-                'similar': '/api/recommendations/similar/?diamond_id=123&limit=5',
-                'settings': '/api/recommendations/settings/?limit=10',
-                'combinations': '/api/recommendations/combinations/?limit=10',
-                'next_step': '/api/recommendations/next-step/?diamond_id=123&setting_id=456'
+                'budget': '/api/recommendations/budget/?max_price=50000',
+                'similar': '/api/recommendations/similar/?diamond_id=1',
+                'settings': '/api/recommendations/settings/',
+                'combinations': '/api/recommendations/combinations/',
+                'next_step': '/api/recommendations/next_step/?diamond_id=1'
             }
         })
     
-    def retrieve(self, request, pk=None):
-        """Not implemented - use specific endpoints instead"""
-        return Response({
-            'success': False,
-            'error': 'Retrieve not supported. Use specific endpoints like /personalized/, /trending/, etc.'
-        }, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    def create(self, request):
+        """Not allowed"""
+        return Response({'error': 'POST not allowed'}, status=405)
     
-    @action(detail=False, methods=['get'])
-    def personalized(self, request):
-        """Get personalized recommendations for user"""
-        try:
-            # user = request.user if request.user.is_authenticated else None
-            user = request.user 
-            
-            engine = RecommendationEngine(user=user)
-            
-            diamonds = engine.get_personalized_diamonds(10)
-            settings = engine.get_personalized_settings(10)
-            combinations = engine.get_recommended_combinations(5)
-            
-            diamond_serializer = DiamondListSerializer(diamonds, many=True)
-            setting_serializer = SettingListSerializer(settings, many=True)
-            
-            return Response({
-                'success': True,
-                'diamonds': diamond_serializer.data,
-                'settings': setting_serializer.data,
-                'combinations': [{
-                    'diamond': DiamondListSerializer(c['diamond']).data,
-                    'setting': SettingListSerializer(c['setting']).data,
-                    'total_price': float(c['total_price']),
-                    'popularity': c['popularity']
-                } for c in combinations],
-                'message': 'Personalized recommendations based on your preferences'
-            })
-        except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+    def retrieve(self, request, pk=None):
+        """Not allowed"""
+        return Response({'error': 'GET by ID not allowed'}, status=405)
+    
+    def update(self, request, pk=None):
+        """Not allowed"""
+        return Response({'error': 'PUT not allowed'}, status=405)
+    
+    def destroy(self, request, pk=None):
+        """Not allowed"""
+        return Response({'error': 'DELETE not allowed'}, status=405)
     
     @action(detail=False, methods=['get'])
     def trending(self, request):
         """Get trending diamonds"""
         try:
-            limit = int(request.query_params.get('limit', 10))
-            engine = RecommendationEngine()
-            diamonds = engine.get_trending_diamonds(limit)
-            serializer = DiamondListSerializer(diamonds, many=True)
-            
+            diamonds = Diamond.objects.filter(is_available=True).order_by('-created_at')[:10]
             return Response({
                 'success': True,
-                'diamonds': serializer.data,
-                'message': 'Currently trending diamonds based on popularity'
+                'count': diamonds.count(),
+                'diamonds': DiamondListSerializer(diamonds, many=True).data
             })
         except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=500)
+    
+    @action(detail=False, methods=['get'])
+    def personalized(self, request):
+        """Get personalized recommendations"""
+        try:
+            diamonds = Diamond.objects.filter(is_available=True)[:10]
+            settings_list = Setting.objects.filter(is_available=True)[:10]
             return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'success': True,
+                'count': diamonds.count(),
+                'diamonds': DiamondListSerializer(diamonds, many=True).data,
+                'settings': SettingListSerializer(settings_list, many=True).data
+            })
+        except Exception as e:
+            return Response({'success': False, 'error': str(e)}, status=500)
     
     @action(detail=False, methods=['get'])
     def budget(self, request):
         """Get budget-friendly diamonds"""
         try:
-            max_price_str = request.query_params.get('max_price')
-            
-            if not max_price_str:
+            max_price = request.query_params.get('max_price')
+            if not max_price:
                 return Response({
-                    'success': False,
-                    'error': 'max_price parameter is required'
-                }, status=status.HTTP_400_BAD_REQUEST)
+                    'success': False, 
+                    'error': 'max_price parameter required',
+                    'example': '?max_price=50000'
+                }, status=400)
             
-            max_price = float(max_price_str)
-            limit = int(request.query_params.get('limit', 10))
-            
-            engine = RecommendationEngine()
-            diamonds = engine.get_budget_friendly_diamonds(max_price, limit)
-            serializer = DiamondListSerializer(diamonds, many=True)
+            diamonds = Diamond.objects.filter(
+                is_available=True, 
+                base_price__lte=float(max_price)
+            ).order_by('base_price')[:10]
             
             return Response({
                 'success': True,
-                'diamonds': serializer.data,
-                'budget': max_price,
-                'count': len(diamonds),
-                'message': f'Best quality diamonds within ${max_price:,.2f} budget'
+                'count': diamonds.count(),
+                'max_price': float(max_price),
+                'diamonds': DiamondListSerializer(diamonds, many=True).data
             })
-        except ValueError as e:
-            return Response({
-                'success': False,
-                'error': 'max_price parameter must be a valid number'
-            }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'success': False, 'error': str(e)}, status=500)
     
     @action(detail=False, methods=['get'])
     def similar(self, request):
-        """Get similar diamonds"""
+        """Get similar diamonds to a given diamond"""
         try:
-            diamond_id_str = request.query_params.get('diamond_id')
-            
-            if not diamond_id_str:
+            diamond_id = request.query_params.get('diamond_id')
+            if not diamond_id:
                 return Response({
-                    'success': False,
-                    'error': 'diamond_id parameter is required'
-                }, status=status.HTTP_400_BAD_REQUEST)
+                    'success': False, 
+                    'error': 'diamond_id parameter required',
+                    'example': '?diamond_id=1'
+                }, status=400)
             
-            diamond_id = int(diamond_id_str)
-            limit = int(request.query_params.get('limit', 5))
-            
-            engine = RecommendationEngine()
-            similar = engine.get_similar_diamonds(diamond_id, limit)
-            serializer = DiamondListSerializer(similar, many=True)
+            diamond = Diamond.objects.get(diamond_id=int(diamond_id))
+            similar = Diamond.objects.filter(
+                is_available=True, 
+                shape=diamond.shape
+            ).exclude(diamond_id=diamond_id)[:5]
             
             return Response({
                 'success': True,
-                'similar_diamonds': serializer.data,
-                'reference_diamond_id': diamond_id,
-                'count': len(similar),
-                'message': 'Diamonds similar to your selection'
+                'count': similar.count(),
+                'reference_diamond': DiamondListSerializer(diamond).data,
+                'similar_diamonds': DiamondListSerializer(similar, many=True).data
             })
-        except ValueError:
+        except Diamond.DoesNotExist:
             return Response({
-                'success': False,
-                'error': 'diamond_id parameter must be a valid number'
-            }, status=status.HTTP_400_BAD_REQUEST)
+                'success': False, 
+                'error': 'Diamond not found'
+            }, status=404)
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'success': False, 'error': str(e)}, status=500)
     
     @action(detail=False, methods=['get'])
     def settings(self, request):
         """Get recommended settings"""
         try:
-            limit = int(request.query_params.get('limit', 10))
             diamond_id = request.query_params.get('diamond_id')
             
-            engine = RecommendationEngine(
-                user=request.user if request.user.is_authenticated else None
-            )
-            
             if diamond_id:
-                settings = engine.get_settings_for_diamond(int(diamond_id), limit)
-                message = 'Settings recommended for this diamond'
-            else:
-                settings = engine.get_personalized_settings(limit)
-                message = 'Personalized setting recommendations'
+                try:
+                    diamond = Diamond.objects.get(diamond_id=int(diamond_id))
+                except Diamond.DoesNotExist:
+                    pass
             
-            serializer = SettingListSerializer(settings, many=True)
+            settings_list = Setting.objects.filter(is_available=True).order_by('-popularity_score')[:10]
             
             return Response({
                 'success': True,
-                'settings': serializer.data,
-                'count': len(settings),
-                'message': message
+                'count': settings_list.count(),
+                'settings': SettingListSerializer(settings_list, many=True).data
             })
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'success': False, 'error': str(e)}, status=500)
     
     @action(detail=False, methods=['get'])
     def combinations(self, request):
         """Get recommended diamond + setting combinations"""
         try:
-            limit = int(request.query_params.get('limit', 10))
-            engine = RecommendationEngine()
+            combos = []
+            configs = RingConfiguration.objects.filter(
+                is_saved=True
+            ).select_related('diamond', 'setting').filter(
+                diamond__isnull=False, 
+                setting__isnull=False
+            )[:10]
             
-            combinations = engine.get_recommended_combinations(limit)
-            
-            result = []
-            for combo in combinations:
-                result.append({
-                    'diamond': DiamondListSerializer(combo['diamond']).data,
-                    'setting': SettingListSerializer(combo['setting']).data,
-                    'total_price': float(combo['total_price']),
-                    'popularity': combo['popularity']
-                })
+            for c in configs:
+                try:
+                    combos.append({
+                        'diamond': DiamondListSerializer(c.diamond).data,
+                        'setting': SettingListSerializer(c.setting).data,
+                        'total_price': float(c.total_price),
+                        'ring_size': c.ring_size
+                    })
+                except:
+                    continue
             
             return Response({
                 'success': True,
-                'combinations': result,
-                'count': len(result),
-                'message': 'Popular diamond + setting combinations'
+                'count': len(combos),
+                'combinations': combos
             })
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'success': False, 'error': str(e)}, status=500)
     
     @action(detail=False, methods=['get'])
     def next_step(self, request):
-        """Get smart next-step recommendations for configurator"""
+        """Get next step recommendations in the configurator"""
         try:
             diamond_id = request.query_params.get('diamond_id')
             setting_id = request.query_params.get('setting_id')
             
-            engine = RecommendationEngine()
+            if diamond_id and not setting_id:
+                # User has diamond, needs setting
+                settings_list = Setting.objects.filter(is_available=True).order_by('-popularity_score')[:5]
+                return Response({
+                    'success': True,
+                    'type': 'setting',
+                    'message': 'Choose a setting for your diamond',
+                    'count': settings_list.count(),
+                    'recommendations': SettingListSerializer(settings_list, many=True).data
+                })
             
-            diamond = None
-            setting = None
+            elif setting_id and not diamond_id:
+                # User has setting, needs diamond
+                diamonds = Diamond.objects.filter(is_available=True)[:5]
+                return Response({
+                    'success': True,
+                    'type': 'diamond',
+                    'message': 'Choose a diamond for your setting',
+                    'count': diamonds.count(),
+                    'recommendations': DiamondListSerializer(diamonds, many=True).data
+                })
             
-            if diamond_id:
-                try:
-                    diamond = Diamond.objects.get(diamond_id=diamond_id)
-                except Diamond.DoesNotExist:
-                    pass
+            elif diamond_id and setting_id:
+                # User has both, ready to checkout
+                return Response({
+                    'success': True,
+                    'type': 'complete',
+                    'message': 'Your ring design is complete! Ready to checkout.',
+                    'recommendations': []
+                })
             
-            if setting_id:
-                try:
-                    setting = Setting.objects.get(setting_id=setting_id)
-                except Setting.DoesNotExist:
-                    pass
-            
-            recs = engine.get_next_step_recommendations(diamond, setting)
-            
-            recs_data = []
-            if recs['recommendations']:
-                if recs['type'] == 'setting':
-                    recs_data = SettingListSerializer(recs['recommendations'], many=True).data
-                else:
-                    recs_data = DiamondListSerializer(recs['recommendations'], many=True).data
-            
-            return Response({
-                'success': True,
-                'type': recs['type'],
-                'message': recs['message'],
-                'recommendations': recs_data,
-                'count': len(recs_data)
-            })
+            else:
+                # Start from scratch
+                return Response({
+                    'success': True,
+                    'type': 'start',
+                    'message': 'Start by choosing a diamond or setting',
+                    'recommendations': []
+                })
         except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'success': False, 'error': str(e)}, status=500)
