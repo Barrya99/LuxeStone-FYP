@@ -1,3 +1,5 @@
+// diamond-frontend/src/components/recommendations/RecommendationCard.jsx
+
 import { Link } from 'react-router-dom';
 import { Heart, Sparkles, ShoppingCart } from 'lucide-react';
 import { formatPrice, formatCarat } from '../../utils/formatters';
@@ -13,37 +15,49 @@ import toast from 'react-hot-toast';
 const RecommendationCard = ({ item, type = 'diamond' }) => {
   const { addFavorite, removeFavorite, isFavorite } = useFavoritesStore();
   const { addItem } = useCartStore();
-  const itemId = type === 'diamond' ? item.diamond_id : item.setting_id;
+  
+  // FIXED: Safely get the item ID
+  const itemId = type === 'diamond' ? item?.diamond_id : item?.setting_id;
+  
+  // If no ID, don't render
+  if (!itemId) {
+    console.warn(`Missing ${type}_id for item:`, item);
+    return null;
+  }
+
+  const isLiked = isFavorite(itemId);
+
+  const handleAddToCart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addItem({
+      type: type,
+      [type === 'diamond' ? 'diamond_id' : 'setting_id']: itemId,
+      total_price: item?.base_price || 0,
+      ...item,
+    });
+    toast.success('Added to cart');
+  };
 
   const handleToggleFavorite = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (isFavorite(itemId)) {
+    if (isLiked) {
       removeFavorite(itemId);
       toast.success('Removed from favorites');
     } else {
       addFavorite({
         id: itemId,
-        type,
+        type: type,
         ...item,
       });
       toast.success('Added to favorites');
     }
   };
 
-  const handleAddToCart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    addItem({
-      type,
-      [type === 'diamond' ? 'diamond_id' : 'setting_id']: itemId,
-      total_price: item.base_price,
-      ...item,
-    });
-    toast.success('Added to cart');
-  };
-
-  const link = type === 'diamond' ? `/diamonds/${item.diamond_id}` : `/settings/${item.setting_id}`;
+  const link = type === 'diamond' 
+    ? `/diamonds/${itemId}` 
+    : `/settings/${itemId}`;
 
   return (
     <Link
@@ -67,13 +81,13 @@ const RecommendationCard = ({ item, type = 'diamond' }) => {
           <button
             onClick={handleToggleFavorite}
             className={`p-1 rounded-full transition-all ${
-              isFavorite(itemId)
+              isLiked
                 ? 'bg-red-500 text-white'
                 : 'bg-white/90 text-gray-700 hover:bg-white'
             }`}
             title="Add to favorites"
           >
-            <Heart className={`w-3.5 h-3.5 ${isFavorite(itemId) ? 'fill-current' : ''}`} />
+            <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} />
           </button>
           <button
             onClick={handleAddToCart}
@@ -90,8 +104,8 @@ const RecommendationCard = ({ item, type = 'diamond' }) => {
         {/* Title - Single Line Truncated */}
         <h4 className="text-xs font-bold text-gray-900 truncate leading-tight mb-1">
           {type === 'diamond' 
-            ? `${formatCarat(item.carat)} ${item.shape}` 
-            : item.name
+            ? `${item?.carat ? formatCarat(item.carat) : 'N/A'} ${item?.shape || 'Diamond'}` 
+            : item?.name || 'Setting'
           }
         </h4>
 
@@ -99,21 +113,29 @@ const RecommendationCard = ({ item, type = 'diamond' }) => {
         <div className="flex gap-0.5 mb-1.5 flex-wrap">
           {type === 'diamond' ? (
             <>
-              <span className="px-1 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">
-                {item.cut}
-              </span>
-              <span className="px-1 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-medium">
-                {item.color}
-              </span>
+              {item?.cut && (
+                <span className="px-1 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                  {item.cut}
+                </span>
+              )}
+              {item?.color && (
+                <span className="px-1 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-medium">
+                  {item.color}
+                </span>
+              )}
             </>
           ) : (
             <>
-              <span className="px-1 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-medium">
-                {item.metal_type}
-              </span>
-              <span className="px-1 py-0.5 bg-orange-50 text-orange-700 rounded text-xs font-medium">
-                {item.style_type?.substring(0, 5)}
-              </span>
+              {item?.metal_type && (
+                <span className="px-1 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-medium">
+                  {item.metal_type}
+                </span>
+              )}
+              {item?.style_type && (
+                <span className="px-1 py-0.5 bg-orange-50 text-orange-700 rounded text-xs font-medium">
+                  {item.style_type.substring(0, 5)}
+                </span>
+              )}
             </>
           )}
         </div>
@@ -121,10 +143,10 @@ const RecommendationCard = ({ item, type = 'diamond' }) => {
         {/* Price & Label */}
         <div>
           <p className="text-sm font-bold text-gray-900 leading-tight">
-            {formatPrice(item.base_price)}
+            {item?.base_price ? formatPrice(item.base_price) : 'Contact'}
           </p>
           <p className="text-xs text-gray-500">
-            {type === 'diamond' ? 'IGI' : 'Setting'}
+            {type === 'diamond' ? 'IGI Certified' : 'Setting'}
           </p>
         </div>
       </div>
