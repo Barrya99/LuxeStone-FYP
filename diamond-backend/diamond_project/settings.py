@@ -89,8 +89,12 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [],   # We do manual token auth
-    'DEFAULT_PERMISSION_CLASSES': [],       # Open by default, views enforce their own
+    # ── Register our custom token authenticator globally ──────────
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rings.authentication.CustomTokenAuthentication',
+    ],
+    # ── Default: open. Protected views set their own permission. ──
+    'DEFAULT_PERMISSION_CLASSES': [],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_RENDERER_CLASSES': [
@@ -115,6 +119,15 @@ CORS_ALLOWED_ORIGINS = [
     "https://jewelary-websitefyp.onrender.com",
     "https://jewelary-website-fyp.vercel.app",
 ]
-
+EMAIL_HOST          = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT          = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS       = os.getenv('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_HOST_USER     = os.getenv('EMAIL_HOST_USER', '')      # your Gmail address
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # App password (not Gmail login!)
+DEFAULT_FROM_EMAIL  = os.getenv(
+    'DEFAULT_FROM_EMAIL',
+    f'LuxeStone <{EMAIL_HOST_USER}>' if EMAIL_HOST_USER else 'noreply@luxestone.com',
+)
+ 
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOW_CREDENTIALS = True

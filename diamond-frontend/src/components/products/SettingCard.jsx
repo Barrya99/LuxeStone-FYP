@@ -14,31 +14,35 @@ import toast from 'react-hot-toast';
 const SettingCard = ({ setting }) => {
   const navigate = useNavigate();
   const { addItem } = useCartStore();
-  const { addSetting } = useComparisonStore();
+  const { addSetting: addToComparison } = useComparisonStore();
   const { reset: resetConfigurator } = useConfiguratorStore();
-  const { token, isAuthenticated } = useUserStore();
+  const { isAuthenticated } = useUserStore();
+
+  // ── Use direct store methods (not the legacy addFavorite) ─────
   const { isFavoriteSetting, addSetting: addFavSetting, removeSetting: removeFavSetting } = useFavoritesStore();
+
+  const isLiked = isFavoriteSetting(setting.setting_id);
 
   const handleToggleFavorite = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     if (!isAuthenticated) {
-      toast.error('Please login to save favorites');
+      toast.error('Please log in to save favorites');
       navigate('/login');
       return;
     }
 
-    if (isFavoriteSetting(setting.setting_id)) {
-      const result = await removeFavSetting(setting.setting_id, token);
-      if (result.success) {
+    if (isLiked) {
+      const result = await removeFavSetting(setting.setting_id);
+      if (result?.success !== false) {
         toast.success('Removed from favorites');
       } else {
         toast.error(result.error || 'Failed to remove');
       }
     } else {
-      const result = await addFavSetting(setting, token);
-      if (result.success) {
+      const result = await addFavSetting(setting);
+      if (result?.success !== false) {
         toast.success('Added to favorites');
       } else {
         toast.error(result.error || 'Failed to add');
@@ -49,7 +53,6 @@ const SettingCard = ({ setting }) => {
   const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     addItem({
       type: 'setting',
       setting_id: setting.setting_id,
@@ -62,8 +65,7 @@ const SettingCard = ({ setting }) => {
   const handleCompare = (e) => {
     e.preventDefault();
     e.stopPropagation();
-
-    const success = addSetting(setting);
+    const success = addToComparison(setting);
     if (success) {
       toast.success('Added to comparison');
       navigate('/comparison');
@@ -82,13 +84,10 @@ const SettingCard = ({ setting }) => {
   const handleBuildRing = (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     resetConfigurator();
     navigate('/configurator');
     toast.success("Let's build a ring! Start by selecting a diamond.");
   };
-
-  const isLiked = isFavoriteSetting(setting.setting_id);
 
   return (
     <Link

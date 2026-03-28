@@ -1,4 +1,4 @@
-// diamond-frontend/src/components/home/FeaturedProducts.jsx - FIXED
+// diamond-frontend/src/components/home/FeaturedProducts.jsx
 
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -6,6 +6,7 @@ import { ArrowRight, Heart, Eye, Loader } from 'lucide-react';
 import { diamondAPI, settingAPI } from '../../services/api';
 import { formatPrice, formatCarat } from '../../utils/formatters';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
+import { useUserStore } from '../../store/useUserStore';
 import Button from '../common/Button';
 import Loading from '../common/Loading';
 import axios from 'axios';
@@ -18,7 +19,13 @@ const FeaturedProducts = () => {
   const [activeTab, setActiveTab] = useState('diamonds');
   const [diamondPrices, setDiamondPrices] = useState({});
   const [pricingLoading, setPricingLoading] = useState({});
-  const { favorites, addFavorite, removeFavorite, isFavorite } = useFavoritesStore();
+
+  const {
+    isFavoriteDiamond, isFavoriteSetting,
+    addDiamond, removeDiamond,
+    addSetting, removeSetting,
+  } = useFavoritesStore();
+  const { isAuthenticated } = useUserStore();
 
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
@@ -35,13 +42,10 @@ const FeaturedProducts = () => {
       ]);
       setDiamonds(diamondsRes.data.results || []);
       setSettings(settingsRes.data.results || []);
-
-      // Calculate prices for all diamonds
       if (diamondsRes.data.results) {
         calculateAllDiamondPrices(diamondsRes.data.results);
       }
     } catch (error) {
-      console.error('Error fetching products:', error);
       toast.error('Failed to load featured products');
     } finally {
       setLoading(false);
@@ -49,68 +53,78 @@ const FeaturedProducts = () => {
   };
 
   const calculateAllDiamondPrices = async (diamondList) => {
-    try {
-      const priceMap = {};
-      
-      for (const diamond of diamondList) {
-        setPricingLoading(prev => ({
-          ...prev,
-          [diamond.diamond_id]: true
-        }));
-
-        try {
-          const response = await axios.post(
-            `${API_BASE_URL}/pricing/calculate-diamond-price/`,
-            { diamond_id: diamond.diamond_id }
-          );
-
-          if (response.data.success) {
-            priceMap[diamond.diamond_id] = {
+    for (const diamond of diamondList) {
+      setPricingLoading(prev => ({ ...prev, [diamond.diamond_id]: true }));
+      try {
+        const response = await axios.post(
+          `${API_BASE_URL}/pricing/calculate-diamond-price/`,
+          { diamond_id: diamond.diamond_id }
+        );
+        if (response.data.success) {
+          setDiamondPrices(prev => ({
+            ...prev,
+            [diamond.diamond_id]: {
               calculated_price: response.data.calculated_price,
               quality_multiplier: response.data.quality_multiplier,
-            };
-          }
-        } catch (error) {
-          // Fallback to base price
-          priceMap[diamond.diamond_id] = {
-            calculated_price: parseFloat(diamond.base_price),
-            quality_multiplier: 1,
-          };
+            },
+          }));
         }
-
-        setPricingLoading(prev => {
-          const updated = { ...prev };
-          delete updated[diamond.diamond_id];
-          return updated;
-        });
+      } catch {
+        setDiamondPrices(prev => ({
+          ...prev,
+          [diamond.diamond_id]: { calculated_price: parseFloat(diamond.base_price), quality_multiplier: 1 },
+        }));
       }
-
-      setDiamondPrices(priceMap);
-    } catch (error) {
-      console.error('Error calculating prices:', error);
+      setPricingLoading(prev => {
+        const updated = { ...prev };
+        delete updated[diamond.diamond_id];
+        return updated;
+      });
     }
   };
 
-  const handleToggleFavorite = (item, type) => {
-    const favoriteItem = {
-      id: type === 'diamond' ? item.diamond_id : item.setting_id,
-      type,
-      ...item,
-    };
-
-    if (isFavorite(favoriteItem.id)) {
-      removeFavorite(favoriteItem.id);
-      toast.success('Removed from favorites');
+  // ── Diamond favorite toggle ───────────────────────────────────
+  const handleToggleDiamondFavorite = async (e, diamond) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      toast.error('Please log in to save favorites');
+      return;
+    }
+    if (isFavoriteDiamond(diamond.diamond_id)) {
+      const result = await removeDiamond(diamond.diamond_id);
+      toast[result?.success !== false ? 'success' : 'error'](
+        result?.success !== false ? 'Removed from favorites' : result.error || 'Failed'
+      );
     } else {
-      addFavorite(favoriteItem);
-      toast.success('Added to favorites');
+      const result = await addDiamond(diamond);
+      toast[result?.success !== false ? 'success' : 'error'](
+        result?.success !== false ? 'Added to favorites' : result.error || 'Failed'
+      );
     }
   };
 
-  const getDisplayPrice = (diamond) => {
-    return diamondPrices[diamond.diamond_id]?.calculated_price || 
-           parseFloat(diamond.base_price);
+  // ── Setting favorite toggle ───────────────────────────────────
+  const handleToggleSettingFavorite = async (e, setting) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      toast.error('Please log in to save favorites');
+      return;
+    }
+    if (isFavoriteSetting(setting.setting_id)) {
+      const result = await removeSetting(setting.setting_id);
+      toast[result?.success !== false ? 'success' : 'error'](
+        result?.success !== false ? 'Removed from favorites' : result.error || 'Failed'
+      );
+    } else {
+      const result = await addSetting(setting);
+      toast[result?.success !== false ? 'success' : 'error'](
+        result?.success !== false ? 'Added to favorites' : result.error || 'Failed'
+      );
+    }
   };
+
+  const getDisplayPrice = (diamond) =>
+    diamondPrices[diamond.diamond_id]?.calculated_price || parseFloat(diamond.base_price);
 
   const DiamondCard = ({ diamond }) => (
     <Link
@@ -122,27 +136,21 @@ const FeaturedProducts = () => {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-32 h-32 bg-gradient-to-br from-blue-300 via-blue-200 to-cyan-200 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500 blur-sm" />
         </div>
-        
+
         {/* Actions */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              handleToggleFavorite(diamond, 'diamond');
-            }}
+            onClick={(e) => handleToggleDiamondFavorite(e, diamond)}
             className={`p-2 rounded-full backdrop-blur-sm transition-all ${
-              isFavorite(diamond.diamond_id)
+              isFavoriteDiamond(diamond.diamond_id)
                 ? 'bg-red-500 text-white'
                 : 'bg-white/80 text-gray-700 hover:bg-white'
             }`}
           >
-            <Heart className={`h-5 w-5 ${isFavorite(diamond.diamond_id) ? 'fill-current' : ''}`} />
+            <Heart className={`h-5 w-5 ${isFavoriteDiamond(diamond.diamond_id) ? 'fill-current' : ''}`} />
           </button>
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              window.location.href = `/diamonds/${diamond.diamond_id}`;
-            }}
+            onClick={(e) => { e.preventDefault(); window.location.href = `/diamonds/${diamond.diamond_id}`; }}
             className="p-2 rounded-full bg-white/80 text-gray-700 hover:bg-white transition-all"
           >
             <Eye className="h-5 w-5" />
@@ -152,7 +160,6 @@ const FeaturedProducts = () => {
 
       {/* Content */}
       <div className="p-4 space-y-3">
-        {/* Specs */}
         <div className="flex items-center justify-between">
           <div>
             <p className="font-semibold text-gray-900">
@@ -164,7 +171,6 @@ const FeaturedProducts = () => {
           </div>
         </div>
 
-        {/* Price - FIXED: Show calculated price */}
         <div className="border-t border-gray-200 pt-3">
           {pricingLoading[diamond.diamond_id] ? (
             <div className="flex items-center gap-2">
@@ -199,27 +205,21 @@ const FeaturedProducts = () => {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-32 h-32 bg-gradient-to-br from-yellow-300 via-amber-300 to-orange-300 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500 blur-sm" />
         </div>
-        
+
         {/* Actions */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              handleToggleFavorite(setting, 'setting');
-            }}
+            onClick={(e) => handleToggleSettingFavorite(e, setting)}
             className={`p-2 rounded-full backdrop-blur-sm transition-all ${
-              isFavorite(setting.setting_id)
+              isFavoriteSetting(setting.setting_id)
                 ? 'bg-red-500 text-white'
                 : 'bg-white/80 text-gray-700 hover:bg-white'
             }`}
           >
-            <Heart className={`h-5 w-5 ${isFavorite(setting.setting_id) ? 'fill-current' : ''}`} />
+            <Heart className={`h-5 w-5 ${isFavoriteSetting(setting.setting_id) ? 'fill-current' : ''}`} />
           </button>
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              window.location.href = `/settings/${setting.setting_id}`;
-            }}
+            onClick={(e) => { e.preventDefault(); window.location.href = `/settings/${setting.setting_id}`; }}
             className="p-2 rounded-full bg-white/80 text-gray-700 hover:bg-white transition-all"
           >
             <Eye className="h-5 w-5" />
@@ -248,20 +248,17 @@ const FeaturedProducts = () => {
     </Link>
   );
 
-  if (loading) {
-    return <Loading />;
-  }
+  if (loading) return <Loading />;
 
   return (
     <section className="py-20 bg-gradient-to-b from-white to-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="text-center mb-12">
           <h2 className="font-display text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
             Featured Collection
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Discover our handpicked selection of diamonds and settings with transparent, real-time pricing
+            Handpicked diamonds and settings with transparent, real-time pricing
           </p>
         </div>
 
@@ -304,7 +301,6 @@ const FeaturedProducts = () => {
           </div>
         )}
 
-        {/* View All Button */}
         <div className="flex justify-center">
           <Link
             to={activeTab === 'diamonds' ? '/diamonds' : '/settings'}
@@ -315,12 +311,9 @@ const FeaturedProducts = () => {
           </Link>
         </div>
 
-        {/* Info Box */}
         <div className="mt-12 bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
           <p className="text-sm text-blue-900">
             <strong>✓ All prices shown are REAL calculated prices</strong> including quality adjustments for cut, color, and clarity.
-            <br />
-            You'll see the same price throughout your shopping experience.
           </p>
         </div>
       </div>
