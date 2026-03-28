@@ -1,4 +1,4 @@
-// diamond-frontend/src/components/products/SettingCard.jsx - FIXED
+// diamond-frontend/src/components/products/SettingCard.jsx
 
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, Eye, ShoppingCart, ArrowLeftRight } from 'lucide-react';
@@ -7,6 +7,7 @@ import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { useCartStore } from '../../store/useCartStore';
 import { useComparisonStore } from '../../store/useComparisonStore';
 import { useConfiguratorStore } from '../../store/useConfiguratorStore';
+import { useUserStore } from '../../store/useUserStore';
 import Button from '../common/Button';
 import toast from 'react-hot-toast';
 
@@ -14,14 +15,10 @@ const SettingCard = ({ setting }) => {
   const navigate = useNavigate();
   const { addItem } = useCartStore();
   const { addSetting } = useComparisonStore();
-  
-  // FIXED: Get reset function to reset configurator state
   const { reset: resetConfigurator } = useConfiguratorStore();
+  const { token, isAuthenticated } = useUserStore();
+  const { isFavoriteSetting, addSetting: addFavSetting, removeSetting: removeFavSetting } = useFavoritesStore();
 
-  const handleToggleFavorite = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-      const { addFavorite, removeFavorite, isFavorite } = useFavoritesStore();
   const handleToggleFavorite = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -32,15 +29,15 @@ const SettingCard = ({ setting }) => {
       return;
     }
 
-    if (isFavorite(setting.setting_id)) {
-      const result = await removeFavorite(setting.setting_id, token);
+    if (isFavoriteSetting(setting.setting_id)) {
+      const result = await removeFavSetting(setting.setting_id, token);
       if (result.success) {
         toast.success('Removed from favorites');
       } else {
         toast.error(result.error || 'Failed to remove');
       }
     } else {
-      const result = await addFavorite(setting, token);
+      const result = await addFavSetting(setting, token);
       if (result.success) {
         toast.success('Added to favorites');
       } else {
@@ -52,7 +49,7 @@ const SettingCard = ({ setting }) => {
   const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     addItem({
       type: 'setting',
       setting_id: setting.setting_id,
@@ -65,7 +62,7 @@ const SettingCard = ({ setting }) => {
   const handleCompare = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const success = addSetting(setting);
     if (success) {
       toast.success('Added to comparison');
@@ -82,20 +79,16 @@ const SettingCard = ({ setting }) => {
     }
   };
 
-  // FIXED: Build ring now starts from Step 1, not Step 3
   const handleBuildRing = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    // Reset configurator to start fresh
+
     resetConfigurator();
-    
-    // Navigate to configurator (starts at Step 1)
     navigate('/configurator');
-    
-    // Info toast
-    toast.success('Let\'s build a ring! Start by selecting a diamond.');
+    toast.success("Let's build a ring! Start by selecting a diamond.");
   };
+
+  const isLiked = isFavoriteSetting(setting.setting_id);
 
   return (
     <Link
@@ -112,24 +105,18 @@ const SettingCard = ({ setting }) => {
 
         {/* Action Buttons */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          {/* Favorite Button */}
           <button
             onClick={handleToggleFavorite}
             className={`p-2 rounded-full backdrop-blur-sm transition-all ${
-              isFavorite(setting.setting_id)
+              isLiked
                 ? 'bg-red-500 text-white'
                 : 'bg-white/80 text-gray-700 hover:bg-white'
             }`}
-            title={isFavorite(setting.setting_id) ? 'Remove from favorites' : 'Add to favorites'}
+            title={isLiked ? 'Remove from favorites' : 'Add to favorites'}
           >
-            <Heart
-              className={`h-5 w-5 ${
-                isFavorite(setting.setting_id) ? 'fill-current' : ''
-              }`}
-            />
+            <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
           </button>
 
-          {/* Compare Button */}
           <button
             onClick={handleCompare}
             className="p-2 rounded-full bg-white/80 text-gray-700 hover:bg-white transition-all"
@@ -138,7 +125,6 @@ const SettingCard = ({ setting }) => {
             <ArrowLeftRight className="h-5 w-5" />
           </button>
 
-          {/* View Detail */}
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -186,7 +172,6 @@ const SettingCard = ({ setting }) => {
 
         {/* Buttons */}
         <div className="space-y-2 pt-2">
-          {/* Build Ring Button - FIXED */}
           <Button
             onClick={handleBuildRing}
             className="w-full bg-primary-600 hover:bg-primary-700"
@@ -194,7 +179,6 @@ const SettingCard = ({ setting }) => {
             🔨 Build Your Ring
           </Button>
 
-          {/* Add to Cart Button */}
           <Button
             onClick={handleAddToCart}
             variant="outline"
@@ -208,6 +192,5 @@ const SettingCard = ({ setting }) => {
     </Link>
   );
 };
-}
 
 export default SettingCard;

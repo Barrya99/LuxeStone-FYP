@@ -1,10 +1,10 @@
 // diamond-frontend/src/components/routing/ProtectedRoute.jsx
 
 import { Navigate } from 'react-router-dom';
-import { useAuthStore } from '../../store/useAuthStore';
+import { useUserStore } from '../../store/useUserStore';
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useUserStore();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

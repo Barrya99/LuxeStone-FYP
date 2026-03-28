@@ -1,4 +1,5 @@
 // diamond-frontend/src/store/useUserStore.js
+// Single source of truth for authentication. Uses the real backend API.
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -8,14 +9,13 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
 export const useUserStore = create(
   persist(
     (set, get) => ({
-      // ============ STATE ============
       user: null,
       token: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
 
-      // ============ LOGIN ============
+      // ── LOGIN ──────────────────────────────────────────────
       login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
@@ -24,13 +24,15 @@ export const useUserStore = create(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
           });
-
           const data = await response.json();
 
           if (!data.success) {
             set({ error: data.error || 'Login failed', isLoading: false });
             return { success: false, error: data.error };
           }
+
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
 
           set({
             token: data.token,
@@ -39,21 +41,16 @@ export const useUserStore = create(
             isLoading: false,
             error: null,
           });
-
-          // Store in localStorage
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-
           return { success: true };
         } catch (error) {
-          const errorMsg = error.message || 'Login failed';
-          set({ error: errorMsg, isLoading: false });
-          return { success: false, error: errorMsg };
+          const msg = error.message || 'Login failed';
+          set({ error: msg, isLoading: false });
+          return { success: false, error: msg };
         }
       },
 
-      // ============ REGISTER ============
-      register: async (email, password, firstName, lastName, phone = '') => {
+      // ── REGISTER ──────────────────────────────────────────
+      register: async (email, password, firstName, lastName = '', phone = '') => {
         set({ isLoading: true, error: null });
         try {
           const response = await fetch(`${API_BASE_URL}/auth/register/`, {
@@ -67,7 +64,6 @@ export const useUserStore = create(
               phone,
             }),
           });
-
           const data = await response.json();
 
           if (!data.success) {
@@ -75,7 +71,9 @@ export const useUserStore = create(
             return { success: false, error: data.error };
           }
 
-          // Auto-login after registration
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+
           set({
             token: data.token,
             user: data.user,
@@ -83,158 +81,114 @@ export const useUserStore = create(
             isLoading: false,
             error: null,
           });
-
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-
           return { success: true };
         } catch (error) {
-          const errorMsg = error.message || 'Registration failed';
-          set({ error: errorMsg, isLoading: false });
-          return { success: false, error: errorMsg };
+          const msg = error.message || 'Registration failed';
+          set({ error: msg, isLoading: false });
+          return { success: false, error: msg };
         }
       },
 
-      // ============ LOGOUT ============
+      // ── LOGOUT ────────────────────────────────────────────
       logout: async () => {
-        set({ isLoading: true });
-        try {
-          const token = get().token;
-
-          if (token) {
+        const token = get().token;
+        // Best-effort server-side logout
+        if (token) {
+          try {
             await fetch(`${API_BASE_URL}/auth/logout/`, {
               method: 'POST',
               headers: {
-                'Authorization': `Token ${token}`,
+                Authorization: `Token ${token}`,
                 'Content-Type': 'application/json',
               },
             });
-          }
-
-          set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null,
-          });
-
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-        } catch (error) {
-          console.error('Logout error:', error);
-          set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            isLoading: false,
-          });
+          } catch (_) {}
         }
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        set({ user: null, token: null, isAuthenticated: false, error: null });
       },
 
-      // ============ GET CURRENT USER ============
+      // ── GET CURRENT USER (called on app boot) ─────────────
       getCurrentUser: async () => {
+        const token = get().token;
+        if (!token) return null;
         try {
-          const token = get().token;
-          if (!token) return null;
-
           const response = await fetch(`${API_BASE_URL}/auth/me/`, {
-            headers: { 'Authorization': `Token ${token}` },
+            headers: { Authorization: `Token ${token}` },
           });
-
           const data = await response.json();
-
           if (data.success) {
             set({ user: data.user, isAuthenticated: true });
             localStorage.setItem('user', JSON.stringify(data.user));
             return data.user;
           } else {
-            set({ token: null, user: null, isAuthenticated: false });
+            // Token invalid — clear everything
             localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            set({ token: null, user: null, isAuthenticated: false });
             return null;
           }
-        } catch (error) {
-          console.error('Get user error:', error);
+        } catch (_) {
           return null;
         }
       },
 
-      // ============ UPDATE PROFILE ============
+      // ── UPDATE PROFILE ────────────────────────────────────
       updateProfile: async (firstName, lastName, phone = '') => {
         set({ isLoading: true, error: null });
         try {
           const token = get().token;
-
           const response = await fetch(`${API_BASE_URL}/auth/update_profile/`, {
             method: 'PUT',
             headers: {
-              'Authorization': `Token ${token}`,
+              Authorization: `Token ${token}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              first_name: firstName,
-              last_name: lastName,
-              phone,
-            }),
+            body: JSON.stringify({ first_name: firstName, last_name: lastName, phone }),
           });
-
           const data = await response.json();
-
           if (!data.success) {
             set({ error: data.error, isLoading: false });
             return { success: false, error: data.error };
           }
-
-          set({
-            user: data.user,
-            isLoading: false,
-            error: null,
-          });
-
+          set({ user: data.user, isLoading: false, error: null });
           localStorage.setItem('user', JSON.stringify(data.user));
           return { success: true };
         } catch (error) {
-          const errorMsg = error.message || 'Update failed';
-          set({ error: errorMsg, isLoading: false });
-          return { success: false, error: errorMsg };
+          const msg = error.message || 'Update failed';
+          set({ error: msg, isLoading: false });
+          return { success: false, error: msg };
         }
       },
 
-      // ============ CHANGE PASSWORD ============
+      // ── CHANGE PASSWORD ───────────────────────────────────
       changePassword: async (oldPassword, newPassword) => {
         set({ isLoading: true, error: null });
         try {
           const token = get().token;
-
           const response = await fetch(`${API_BASE_URL}/auth/change_password/`, {
             method: 'POST',
             headers: {
-              'Authorization': `Token ${token}`,
+              Authorization: `Token ${token}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              old_password: oldPassword,
-              new_password: newPassword,
-            }),
+            body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
           });
-
           const data = await response.json();
-
           if (!data.success) {
             set({ error: data.error, isLoading: false });
             return { success: false, error: data.error };
           }
-
           set({ isLoading: false, error: null });
           return { success: true };
         } catch (error) {
-          const errorMsg = error.message || 'Password change failed';
-          set({ error: errorMsg, isLoading: false });
-          return { success: false, error: errorMsg };
+          const msg = error.message || 'Password change failed';
+          set({ error: msg, isLoading: false });
+          return { success: false, error: msg };
         }
       },
 
-      // ============ CLEAR ERROR ============
       clearError: () => set({ error: null }),
     }),
     {

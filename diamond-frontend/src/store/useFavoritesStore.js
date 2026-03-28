@@ -1,245 +1,176 @@
 // diamond-frontend/src/store/useFavoritesStore.js
+// Favorites are always stored server-side for authenticated users.
+// Unauthenticated users see an empty list (no local-only favorites
+// to avoid confusion when they later log in).
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { favoriteAPI } from '../services/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+export const useFavoritesStore = create((set, get) => ({
+  diamonds: [],
+  settings: [],
+  isLoading: false,
+  error: null,
 
-export const useFavoritesStore = create(
-  persist(
-    (set, get) => ({
-      // ============ STATE ============
-      diamonds: [],        // Array of favorited diamonds
-      settings: [],        // Array of favorited settings
-      isLoading: false,
-      error: null,
-
-      // ============ LOAD FAVORITES FROM DATABASE ============
-      loadFavorites: async (token) => {
-        if (!token) {
-          set({ diamonds: [], settings: [] });
-          return;
-        }
-
-
-        set({ isLoading: true });
-        try {
-          const response = await fetch(`${API_BASE_URL}/favorites/my_favorites/`, {
-            headers: { 'Authorization': `Token ${token}` },
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            const diamondItems = data.diamonds || [];
-            const settingItems = data.settings || [];
-
-            set({
-              diamonds: diamondItems.map(fav => fav.diamond || fav),
-              settings: settingItems.map(fav => fav.setting || fav),
-              isLoading: false,
-              error: null,
-            });
-          } else {
-            set({ error: data.error, isLoading: false });
-          }
-        } catch (error) {
-          console.error('Load favorites error:', error);
-          set({ isLoading: false, error: error.message });
-        }
-      },
-
-      // ============ ADD DIAMOND TO FAVORITES ============
-      addDiamond: async (diamond, token) => {
-        if (!token) {
-          // Fallback: save locally if not authenticated
-          set((state) => {
-            const exists = state.diamonds.some(d => d.diamond_id === diamond.diamond_id);
-            return {
-              diamonds: exists ? state.diamonds : [...state.diamonds, diamond],
-            };
-          });
-          return { success: true, message: 'Saved locally (login to sync)' };
-        }
-
-        try {
-          const response = await fetch(`${API_BASE_URL}/favorites/add_diamond/`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Token ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ diamond_id: diamond.diamond_id }),
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            set((state) => {
-              const exists = state.diamonds.some(d => d.diamond_id === diamond.diamond_id);
-              return {
-                diamonds: exists ? state.diamonds : [...state.diamonds, diamond],
-              };
-            });
-            return { success: true };
-          } else {
-            return { success: false, error: data.error };
-          }
-        } catch (error) {
-          console.error('Add diamond error:', error);
-          return { success: false, error: error.message };
-        }
-      },
-      
-      // ============ REMOVE DIAMOND FROM FAVORITES ============
-      removeDiamond: async (diamondId, token) => {
-        // Remove from state immediately (optimistic)
-        set((state) => ({
-          diamonds: state.diamonds.filter(d => d.diamond_id !== diamondId),
-        }));
-
-        if (!token) return { success: true };
-
-        try {
-          const response = await fetch(`${API_BASE_URL}/favorites/remove_diamond/`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Token ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ diamond_id: diamondId }),
-          });
-
-          const data = await response.json();
-          return data.success 
-            ? { success: true } 
-            : { success: false, error: data.error };
-        } catch (error) {
-          console.error('Remove diamond error:', error);
-          return { success: false, error: error.message };
-        }
-      },
-
-      // ============ ADD SETTING TO FAVORITES ============
-      addSetting: async (setting, token) => {
-        if (!token) {
-          set((state) => {
-            const exists = state.settings.some(s => s.setting_id === setting.setting_id);
-            return {
-              settings: exists ? state.settings : [...state.settings, setting],
-            };
-          });
-          return { success: true, message: 'Saved locally (login to sync)' };
-        }
-
-        try {
-          const response = await fetch(`${API_BASE_URL}/favorites/add_setting/`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Token ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ setting_id: setting.setting_id }),
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            set((state) => {
-              const exists = state.settings.some(s => s.setting_id === setting.setting_id);
-              return {
-                settings: exists ? state.settings : [...state.settings, setting],
-              };
-            });
-            return { success: true };
-          } else {
-            return { success: false, error: data.error };
-          }
-        } catch (error) {
-          console.error('Add setting error:', error);
-          return { success: false, error: error.message };
-        }
-      },
-
-      // ============ REMOVE SETTING FROM FAVORITES ============
-      removeSetting: async (settingId, token) => {
-        set((state) => ({
-          settings: state.settings.filter(s => s.setting_id !== settingId),
-        }));
-
-        if (!token) return { success: true };
-
-        try {
-          const response = await fetch(`${API_BASE_URL}/favorites/remove_setting/`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Token ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ setting_id: settingId }),
-          });
-
-          const data = await response.json();
-          return data.success 
-            ? { success: true } 
-            : { success: false, error: data.error };
-        } catch (error) {
-          console.error('Remove setting error:', error);
-          return { success: false, error: error.message };
-        }
-      },
-
-      // ============ CHECK IF DIAMOND IS FAVORITED ============
-      isFavoriteDiamond: (diamondId) => {
-        return get().diamonds.some(d => d.diamond_id === diamondId);
-      },
-
-      // ============ CHECK IF SETTING IS FAVORITED ============
-      isFavoriteSetting: (settingId) => {
-        return get().settings.some(s => s.setting_id === settingId);
-      },
-
-      // ============ OLD COMPATIBILITY METHODS ============
-      // For backwards compatibility with existing code
-      addFavorite: (item) => {
-        if (item.type === 'diamond') {
-          set((state) => ({
-            diamonds: [...state.diamonds, { diamond_id: item.id, ...item }],
-          }));
-        } else if (item.type === 'setting') {
-          set((state) => ({
-            settings: [...state.settings, { setting_id: item.id, ...item }],
-          }));
-        }
-      },
-
-      removeFavorite: (id) => {
-        set((state) => ({
-          diamonds: state.diamonds.filter(d => d.diamond_id !== id),
-          settings: state.settings.filter(s => s.setting_id !== id),
-        }));
-      },
-
-      isFavorite: (id) => {
-        const state = get();
-        return state.diamonds.some(d => d.diamond_id === id) ||
-               state.settings.some(s => s.setting_id === id);
-      },
-
-      // ============ CLEAR ALL FAVORITES ============
-      clearFavorites: () => {
-        set({ diamonds: [], settings: [], error: null });
-      },
-
-      // ============ CLEAR ERROR ============
-      clearError: () => set({ error: null }),
-    }),
-    {
-      name: 'favorites-store',
-      partialize: (state) => ({
-        diamonds: state.diamonds,
-        settings: state.settings,
-      }),
+  // ── LOAD from server (called after login / on app boot) ──
+  loadFavorites: async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      set({ diamonds: [], settings: [] });
+      return;
     }
-  )
-);
+    set({ isLoading: true });
+    try {
+      const res = await favoriteAPI.getMyFavorites();
+      const data = res.data;
+      if (data.success) {
+        set({
+          diamonds: (data.diamonds || []).map(f => f.diamond).filter(Boolean),
+          settings: (data.settings || []).map(f => f.setting).filter(Boolean),
+          isLoading: false,
+          error: null,
+        });
+      } else {
+        set({ isLoading: false, error: data.error });
+      }
+    } catch (err) {
+      set({ isLoading: false, error: err.message });
+    }
+  },
+
+  // ── ADD DIAMOND ───────────────────────────────────────────
+  addDiamond: async (diamond) => {
+    const token = localStorage.getItem('token');
+    if (!token) return { success: false, error: 'Please log in to save favorites' };
+
+    // Optimistic update
+    set(state => {
+      const exists = state.diamonds.some(d => d.diamond_id === diamond.diamond_id);
+      return { diamonds: exists ? state.diamonds : [...state.diamonds, diamond] };
+    });
+
+    try {
+      const res = await favoriteAPI.addDiamond(diamond.diamond_id);
+      if (!res.data.success) {
+        // Rollback
+        set(state => ({
+          diamonds: state.diamonds.filter(d => d.diamond_id !== diamond.diamond_id),
+        }));
+        return { success: false, error: res.data.error };
+      }
+      return { success: true };
+    } catch (err) {
+      // Rollback
+      set(state => ({
+        diamonds: state.diamonds.filter(d => d.diamond_id !== diamond.diamond_id),
+      }));
+      return { success: false, error: err.response?.data?.error || err.message };
+    }
+  },
+
+  // ── REMOVE DIAMOND ────────────────────────────────────────
+  removeDiamond: async (diamondId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return { success: false, error: 'Please log in' };
+
+    // Optimistic update
+    const prev = get().diamonds;
+    set(state => ({ diamonds: state.diamonds.filter(d => d.diamond_id !== diamondId) }));
+
+    try {
+      const res = await favoriteAPI.removeDiamond(diamondId);
+      if (!res.data.success) {
+        set({ diamonds: prev }); // Rollback
+        return { success: false, error: res.data.error };
+      }
+      return { success: true };
+    } catch (err) {
+      set({ diamonds: prev }); // Rollback
+      return { success: false, error: err.response?.data?.error || err.message };
+    }
+  },
+
+  // ── ADD SETTING ───────────────────────────────────────────
+  addSetting: async (setting) => {
+    const token = localStorage.getItem('token');
+    if (!token) return { success: false, error: 'Please log in to save favorites' };
+
+    set(state => {
+      const exists = state.settings.some(s => s.setting_id === setting.setting_id);
+      return { settings: exists ? state.settings : [...state.settings, setting] };
+    });
+
+    try {
+      const res = await favoriteAPI.addSetting(setting.setting_id);
+      if (!res.data.success) {
+        set(state => ({
+          settings: state.settings.filter(s => s.setting_id !== setting.setting_id),
+        }));
+        return { success: false, error: res.data.error };
+      }
+      return { success: true };
+    } catch (err) {
+      set(state => ({
+        settings: state.settings.filter(s => s.setting_id !== setting.setting_id),
+      }));
+      return { success: false, error: err.response?.data?.error || err.message };
+    }
+  },
+
+  // ── REMOVE SETTING ────────────────────────────────────────
+  removeSetting: async (settingId) => {
+    const token = localStorage.getItem('token');
+    if (!token) return { success: false, error: 'Please log in' };
+
+    const prev = get().settings;
+    set(state => ({ settings: state.settings.filter(s => s.setting_id !== settingId) }));
+
+    try {
+      const res = await favoriteAPI.removeSetting(settingId);
+      if (!res.data.success) {
+        set({ settings: prev });
+        return { success: false, error: res.data.error };
+      }
+      return { success: true };
+    } catch (err) {
+      set({ settings: prev });
+      return { success: false, error: err.response?.data?.error || err.message };
+    }
+  },
+
+  // ── HELPERS ───────────────────────────────────────────────
+  isFavoriteDiamond: (diamondId) =>
+    get().diamonds.some(d => d.diamond_id === diamondId),
+
+  isFavoriteSetting: (settingId) =>
+    get().settings.some(s => s.setting_id === settingId),
+
+  // Legacy helper used in older components
+  isFavorite: (id) => {
+    const s = get();
+    return s.diamonds.some(d => d.diamond_id === id) ||
+           s.settings.some(s => s.setting_id === id);
+  },
+
+  // Legacy addFavorite used in older components
+  addFavorite: async (item) => {
+    if (item.type === 'diamond') {
+      return get().addDiamond({ diamond_id: item.id || item.diamond_id, ...item });
+    }
+    if (item.type === 'setting') {
+      return get().addSetting({ setting_id: item.id || item.setting_id, ...item });
+    }
+    return { success: false, error: 'Unknown item type' };
+  },
+
+  // Legacy removeFavorite used in older components
+  removeFavorite: async (id) => {
+    const s = get();
+    if (s.diamonds.some(d => d.diamond_id === id)) return s.removeDiamond(id);
+    if (s.settings.some(sv => sv.setting_id === id)) return s.removeSetting(id);
+    return { success: false, error: 'Item not found in favorites' };
+  },
+
+  clearFavorites: () => set({ diamonds: [], settings: [], error: null }),
+  clearError: () => set({ error: null }),
+}));

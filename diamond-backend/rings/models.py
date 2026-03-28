@@ -1,12 +1,11 @@
-# rings/models.py
-# Cleaned up models from inspectdb
+# diamond-backend/rings/models.py
+# Add this class at the bottom of your existing models.py
 
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class User(models.Model):
-    """User accounts"""
     user_id = models.AutoField(primary_key=True)
     email = models.CharField(unique=True, max_length=255)
     password_hash = models.CharField(max_length=255)
@@ -25,8 +24,26 @@ class User(models.Model):
         return self.email
 
 
+class UserToken(models.Model):
+    """Simple token model for custom User auth (replaces Django's Token)"""
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='auth_token',
+        db_column='user_id'
+    )
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = True   # Django WILL manage this table
+        db_table = 'user_tokens'
+
+    def __str__(self):
+        return f"Token for {self.user.email}"
+
+
 class Diamond(models.Model):
-    """Lab-grown diamonds"""
     diamond_id = models.AutoField(primary_key=True)
     sku = models.CharField(unique=True, max_length=50)
     carat = models.DecimalField(max_digits=4, decimal_places=2)
@@ -61,7 +78,6 @@ class Diamond(models.Model):
 
 
 class Setting(models.Model):
-    """Ring settings/styles"""
     setting_id = models.AutoField(primary_key=True)
     sku = models.CharField(unique=True, max_length=50)
     name = models.CharField(max_length=200)
@@ -89,7 +105,6 @@ class Setting(models.Model):
 
 
 class RingConfiguration(models.Model):
-    """Complete ring designs"""
     config_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='user_id')
     diamond = models.ForeignKey(Diamond, models.DO_NOTHING, blank=True, null=True, db_column='diamond_id')
@@ -114,7 +129,6 @@ class RingConfiguration(models.Model):
 
 
 class Favorite(models.Model):
-    """User favorites/wishlist"""
     favorite_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='user_id')
     diamond = models.ForeignKey(Diamond, models.DO_NOTHING, blank=True, null=True, db_column='diamond_id')
@@ -132,7 +146,6 @@ class Favorite(models.Model):
 
 
 class Review(models.Model):
-    """Product reviews"""
     review_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='user_id')
     diamond = models.ForeignKey(Diamond, models.DO_NOTHING, blank=True, null=True, db_column='diamond_id')
@@ -157,7 +170,6 @@ class Review(models.Model):
 
 
 class Order(models.Model):
-    """Customer orders"""
     order_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='user_id')
     order_number = models.CharField(unique=True, max_length=50)
@@ -200,7 +212,6 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
-    """Items in orders"""
     order_item_id = models.AutoField(primary_key=True)
     order = models.ForeignKey(Order, models.DO_NOTHING, blank=True, null=True, related_name='items', db_column='order_id')
     config = models.ForeignKey(RingConfiguration, models.DO_NOTHING, blank=True, null=True, db_column='config_id')
@@ -223,7 +234,6 @@ class OrderItem(models.Model):
 
 
 class UserInteraction(models.Model):
-    """Analytics tracking"""
     interaction_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, models.DO_NOTHING, blank=True, null=True, db_column='user_id')
     session_id = models.CharField(max_length=100, blank=True, null=True)

@@ -11,7 +11,7 @@ import { useConfiguratorStore } from '../../store/useConfiguratorStore';
 import axios from 'axios';
 import Button from '../common/Button';
 import toast from 'react-hot-toast';
-
+import { useUserStore } from '../../store/useUserStore';
 const DiamondCard = ({ diamond }) => {
   const navigate = useNavigate();
   const { favorites, addFavorite, removeFavorite, isFavoriteDiamond } = useFavoritesStore();

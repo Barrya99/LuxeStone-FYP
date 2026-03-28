@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-// Base API configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
-// Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -11,19 +9,16 @@ const api = axios.create({
   },
 });
 
-// Request interceptor
+// Request interceptor — use "Token <key>" format (DRF TokenAuthentication)
 api.interceptors.request.use(
   (config) => {
-    // Add auth token if available
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Token ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor
@@ -31,15 +26,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);
   }
 );
 
-// API endpoints
 export const diamondAPI = {
   getAll: (params) => api.get('/diamonds/', { params }),
   getById: (id) => api.get(`/diamonds/${id}/`),
@@ -61,10 +55,14 @@ export const configurationAPI = {
 };
 
 export const favoriteAPI = {
-  getAll: (params) => api.get('/favorites/', { params }),
-  create: (data) => api.post('/favorites/', data),
-  delete: (id) => api.delete(`/favorites/${id}/`),
-  getMy: (userId) => api.get('/favorites/my_favorites/', { params: { user_id: userId } }),
+  // All favorite endpoints require auth token (set in interceptor above)
+  getMyFavorites: () => api.get('/favorites/my_favorites/'),
+  addDiamond: (diamondId) => api.post('/favorites/add_diamond/', { diamond_id: diamondId }),
+  removeDiamond: (diamondId) => api.post('/favorites/remove_diamond/', { diamond_id: diamondId }),
+  addSetting: (settingId) => api.post('/favorites/add_setting/', { setting_id: settingId }),
+  removeSetting: (settingId) => api.post('/favorites/remove_setting/', { setting_id: settingId }),
+  checkDiamond: (diamondId) => api.get('/favorites/check_diamond/', { params: { diamond_id: diamondId } }),
+  checkSetting: (settingId) => api.get('/favorites/check_setting/', { params: { setting_id: settingId } }),
 };
 
 export const reviewAPI = {
@@ -75,10 +73,10 @@ export const reviewAPI = {
 };
 
 export const orderAPI = {
-  getAll: (params) => api.get('/orders/', { params }),
+  // Returns only the authenticated user's orders
+  getMyOrders: () => api.get('/orders/my_orders/'),
   getById: (id) => api.get(`/orders/${id}/`),
   create: (data) => api.post('/orders/', data),
-  getMy: (userId) => api.get('/orders/my_orders/', { params: { user_id: userId } }),
   updateStatus: (id, status) => api.patch(`/orders/${id}/update_status/`, { status }),
 };
 
@@ -88,23 +86,21 @@ export const interactionAPI = {
 };
 
 export const pricingAPI = {
-  calculateDiamondPrice: (diamondId) => 
+  calculateDiamondPrice: (diamondId) =>
     api.post('/pricing/calculate-diamond-price/', { diamond_id: diamondId }),
-  
   calculateRingPrice: (diamondId, settingId, ringSize, customizations) =>
     api.post('/pricing/calculate-ring-price/', {
       diamond_id: diamondId,
       setting_id: settingId,
       ring_size: ringSize,
-      customizations: customizations || {}
+      customizations: customizations || {},
     }),
-  
   getPriceBreakdown: (diamondId, settingId, ringSize) =>
     api.post('/pricing/get-price-breakdown/', {
       diamond_id: diamondId,
       setting_id: settingId,
-      ring_size: ringSize
-    })
+      ring_size: ringSize,
+    }),
 };
 
 export default api;

@@ -1,9 +1,10 @@
-// diamond-frontend/src/App.jsx - UPDATED
+// diamond-frontend/src/App.jsx
 
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { useAuthStore } from './store/useAuthStore';
+import { useUserStore } from './store/useUserStore';
+import { useFavoritesStore } from './store/useFavoritesStore';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 
@@ -21,24 +22,25 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Account from './pages/Account';
 import Chatbot from './features/chatbot/Chatbot';
-import { useUserStore } from './store/useUserStore';
-import { useFavoritesStore } from './store/useFavoritesStore';
 
 function App() {
   const { token, getCurrentUser, isAuthenticated } = useUserStore();
   const { loadFavorites } = useFavoritesStore();
 
-  // Initialize auth on app load
+  // On app boot, verify the stored token is still valid
   useEffect(() => {
     if (token) {
       getCurrentUser();
     }
   }, []);
+
+  // Load favorites from the server whenever the user becomes authenticated
   useEffect(() => {
     if (isAuthenticated && token) {
-      loadFavorites(token);
+      loadFavorites();
     }
   }, [isAuthenticated, token]);
+
   return (
     <Router>
       <Layout>

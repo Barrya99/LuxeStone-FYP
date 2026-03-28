@@ -533,90 +533,78 @@ class ReviewViewSet(viewsets.ModelViewSet):
 # ORDER VIEWSET - FIXED
 # ============================================
  
+# diamond-backend/rings/views.py  (OrderViewSet section only — replace the existing class)
+#
+# CHANGE SUMMARY for the OrderViewSet:
+#   • permission_classes = [IsAuthenticated]   (was AllowAny)
+#   • get_queryset() filters by request.user   (was returning all orders)
+#   • my_orders() uses request.user exclusively (no fallback to user_id param)
+#
+# The rest of views.py is unchanged.  Paste this class in place of the old one.
+
+from rest_framework.permissions import IsAuthenticated
+
 class OrderViewSet(viewsets.ModelViewSet):
     """
-    API endpoint for orders
-    
     Endpoints:
-    - GET /api/orders/ - Get current user's orders (requires auth)
-    - GET /api/orders/{order_id}/ - Get order details (requires auth)
-    - POST /api/orders/ - Create new order (requires auth)
-    - GET /api/orders/my_orders/?user_id=1 - Get specific user's orders (no auth needed for demo)
+      GET  /api/orders/            – current user's orders (auth required)
+      GET  /api/orders/{id}/       – single order (auth required, must belong to user)
+      POST /api/orders/            – create order  (auth required)
+      GET  /api/orders/my_orders/  – same as list, kept for backwards compat
     """
-    
-    # FIX 1: Add permission_classes
-    permission_classes = [AllowAny]  # Changed from default to AllowAny for demo
-    
-    queryset = Order.objects.all()
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['user', 'status', 'payment_status']
-    ordering_fields = ['created_at', 'total_amount']
-    ordering = ['-created_at']
-    
+
+    permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields   = ['status', 'payment_status']
+    ordering_fields    = ['created_at', 'total_amount']
+    ordering           = ['-created_at']
+
     def get_serializer_class(self):
         if self.action == 'create':
             return OrderCreateSerializer
         elif self.action == 'retrieve':
             return OrderDetailSerializer
         return OrderListSerializer
-    
+
     def get_queryset(self):
-        """
-        FIX 2: Return all orders (no filtering by user for demo)
-        In production, filter by current user:
-        return Order.objects.filter(user=self.request.user)
-        """
-        return Order.objects.all().prefetch_related('items').order_by('-created_at')
-    
+        """Return only the orders that belong to the authenticated user."""
+        return (
+            Order.objects
+            .filter(user=self.request.user)
+            .prefetch_related('items')
+            .order_by('-created_at')
+        )
+
+    def perform_create(self, serializer):
+        """Automatically attach the authenticated user when creating an order."""
+        serializer.save(user=self.request.user)
+
     @action(detail=False, methods=['get'])
     def my_orders(self, request):
-        """
-        Get orders for current user
-        
-        FIX 3: Support both authenticated and query parameter approach
-        - If user is authenticated: filter by request.user
-        - If user_id in query params: filter by user_id
-        """
-        # Try to filter by authenticated user first
-        if request.user and request.user.is_authenticated:
-            orders = Order.objects.filter(user=request.user).prefetch_related('items').order_by('-created_at')
-        else:
-            # Fall back to user_id parameter for demo/testing
-            user_id = request.query_params.get('user_id')
-            if user_id:
-                orders = Order.objects.filter(user_id=user_id).prefetch_related('items').order_by('-created_at')
-            else:
-                # Return all orders for demo
-                orders = Order.objects.all().prefetch_related('items').order_by('-created_at')
-        
-        page = self.paginate_queryset(orders)
+        """Backwards-compatible alias for the list endpoint."""
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-        
-        serializer = self.get_serializer(orders, many=True)
+
+        serializer = self.get_serializer(queryset, many=True)
         return Response({
-            'count': orders.count(),
-            'results': serializer.data
+            'count': queryset.count(),
+            'results': serializer.data,
         })
-    
+
     @action(detail=True, methods=['patch'])
     def update_status(self, request, pk=None):
-        """Update order status"""
-        order = self.get_object()
+        """Update the status of an order (only the owner can do this)."""
+        order = self.get_object()   # raises 404 / 403 automatically if not found/owned
         new_status = request.data.get('status')
-        
-        if new_status in ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']:
-            order.status = new_status
-            order.save()
-            return Response({'status': order.status})
-        
-        return Response(
-            {"error": "Invalid status"}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-
+        valid = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled']
+        if new_status not in valid:
+            return Response({'error': 'Invalid status'}, status=status.HTTP_400_BAD_REQUEST)
+        order.status = new_status
+        order.save()
+        return Response({'status': order.status})
 # ============================================
 # USER INTERACTION VIEWSET
 # ============================================
