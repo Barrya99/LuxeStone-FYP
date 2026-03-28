@@ -14,8 +14,11 @@ import toast from 'react-hot-toast';
 
 const DiamondCard = ({ diamond }) => {
   const navigate = useNavigate();
-  const { favorites, addFavorite, removeFavorite, isFavorite } = useFavoritesStore();
+  const { favorites, addFavorite, removeFavorite, isFavoriteDiamond } = useFavoritesStore();
+  
   const { addItem } = useCartStore();
+    const { token, isAuthenticated } = useUserStore();
+
   const { addDiamond } = useComparisonStore();
   const { selectDiamond } = useConfiguratorStore();
   
@@ -57,22 +60,30 @@ const DiamondCard = ({ diamond }) => {
     }
   };
 
-  const handleToggleFavorite = (e) => {
+const handleToggleFavorite = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const favoriteItem = {
-      id: diamond.diamond_id,
-      type: 'diamond',
-      ...diamond,
-    };
 
-    if (isFavorite(diamond.diamond_id)) {
-      removeFavorite(diamond.diamond_id);
-      toast.success('Removed from favorites');
+    if (!isAuthenticated) {
+      toast.error('Please login to save favorites');
+      navigate('/login');
+      return;
+    }
+
+    if (isFavoriteDiamond(diamond.diamond_id)) {
+      const result = await removeFavorite(diamond.diamond_id, token);
+      if (result.success) {
+        toast.success('Removed from favorites');
+      } else {
+        toast.error(result.error || 'Failed to remove');
+      }
     } else {
-      addFavorite(favoriteItem);
-      toast.success('Added to favorites');
+      const result = await addFavorite(diamond, token);
+      if (result.success) {
+        toast.success('Added to favorites');
+      } else {
+        toast.error(result.error || 'Failed to add');
+      }
     }
   };
 
@@ -143,15 +154,15 @@ const handleBuildRing = (e) => {
           <button
             onClick={handleToggleFavorite}
             className={`p-2 rounded-full backdrop-blur-sm transition-all ${
-              isFavorite(diamond.diamond_id)
+              isFavoriteDiamond(diamond.diamond_id)
                 ? 'bg-red-500 text-white'
                 : 'bg-white/80 text-gray-700 hover:bg-white'
             }`}
-            title={isFavorite(diamond.diamond_id) ? 'Remove from favorites' : 'Add to favorites'}
+            title={isFavoriteDiamond(diamond.diamond_id) ? 'Remove from favorites' : 'Add to favorites'}
           >
             <Heart
               className={`h-5 w-5 ${
-                isFavorite(diamond.diamond_id) ? 'fill-current' : ''
+                isFavoriteDiamond(diamond.diamond_id) ? 'fill-current' : ''
               }`}
             />
           </button>

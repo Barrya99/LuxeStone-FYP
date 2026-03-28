@@ -12,7 +12,10 @@ import toast from 'react-hot-toast';
 
 const Account = () => {
   const navigate = useNavigate();
-  const { favorites, removeFavorite, clearFavorites } = useFavoritesStore();
+  const {  removeFavorite, clearFavorites } = useFavoritesStore();
+  const diamonds = useFavoritesStore((state) => state.diamonds);
+  const settings = useFavoritesStore((state) => state.settings);
+  const favorites = [...diamonds.map(d => ({ ...d, type: 'diamond' })), ...settings.map(s => ({ ...s, type: 'setting' }))];
   const { addItem } = useCartStore();
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(true);

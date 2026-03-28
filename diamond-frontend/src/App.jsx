@@ -21,15 +21,24 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Account from './pages/Account';
 import Chatbot from './features/chatbot/Chatbot';
+import { useUserStore } from './store/useUserStore';
+import { useFavoritesStore } from './store/useFavoritesStore';
 
 function App() {
-  const { initializeAuth } = useAuthStore();
+  const { token, getCurrentUser, isAuthenticated } = useUserStore();
+  const { loadFavorites } = useFavoritesStore();
 
   // Initialize auth on app load
   useEffect(() => {
-    initializeAuth();
+    if (token) {
+      getCurrentUser();
+    }
   }, []);
-
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      loadFavorites(token);
+    }
+  }, [isAuthenticated, token]);
   return (
     <Router>
       <Layout>

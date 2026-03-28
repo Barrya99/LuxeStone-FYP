@@ -12,7 +12,6 @@ import toast from 'react-hot-toast';
 
 const SettingCard = ({ setting }) => {
   const navigate = useNavigate();
-  const { addFavorite, removeFavorite, isFavorite } = useFavoritesStore();
   const { addItem } = useCartStore();
   const { addSetting } = useComparisonStore();
   
@@ -22,19 +21,31 @@ const SettingCard = ({ setting }) => {
   const handleToggleFavorite = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    const favoriteItem = {
-      id: setting.setting_id,
-      type: 'setting',
-      ...setting,
-    };
+      const { addFavorite, removeFavorite, isFavorite } = useFavoritesStore();
+  const handleToggleFavorite = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      toast.error('Please login to save favorites');
+      navigate('/login');
+      return;
+    }
 
     if (isFavorite(setting.setting_id)) {
-      removeFavorite(setting.setting_id);
-      toast.success('Removed from favorites');
+      const result = await removeFavorite(setting.setting_id, token);
+      if (result.success) {
+        toast.success('Removed from favorites');
+      } else {
+        toast.error(result.error || 'Failed to remove');
+      }
     } else {
-      addFavorite(favoriteItem);
-      toast.success('Added to favorites');
+      const result = await addFavorite(setting, token);
+      if (result.success) {
+        toast.success('Added to favorites');
+      } else {
+        toast.error(result.error || 'Failed to add');
+      }
     }
   };
 
@@ -197,5 +208,6 @@ const SettingCard = ({ setting }) => {
     </Link>
   );
 };
+}
 
 export default SettingCard;

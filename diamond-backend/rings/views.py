@@ -1,7 +1,7 @@
 # rings/views.py
 
 from urllib import request
-
+from django.utils import timezone
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -998,3 +998,323 @@ class RecommendationViewSet(viewsets.ViewSet):
                 'error': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
  
+
+
+
+from rest_framework.permissions import IsAuthenticated
+
+class FavoriteViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for favorites/wishlist with user authentication
+    
+    Endpoints:
+    GET    /api/favorites/                    - List user's favorites (token required)
+    POST   /api/favorites/                    - Create favorite (token required)
+    DELETE /api/favorites/{id}/               - Delete favorite (token required)
+    GET    /api/favorites/my_favorites/       - Get current user's all favorites (token required)
+    POST   /api/favorites/add_diamond/        - Quick add diamond (token required)
+    POST   /api/favorites/add_setting/        - Quick add setting (token required)
+    POST   /api/favorites/remove_diamond/     - Quick remove diamond (token required)
+    POST   /api/favorites/remove_setting/     - Quick remove setting (token required)
+    GET    /api/favorites/check_diamond/      - Check if diamond is favorited (token required)
+    """
+    
+    serializer_class = FavoriteSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['user']
+
+    def get_queryset(self):
+        """Only return favorites for currently authenticated user"""
+        return Favorite.objects.filter(user=self.request.user).order_by('-created_at')
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return FavoriteCreateSerializer
+        return FavoriteSerializer
+
+    def create(self, request, *args, **kwargs):
+        """Create favorite with automatic user assignment"""
+        try:
+            data = request.data.copy()
+            data['user'] = request.user.user_id
+
+            serializer = self.get_serializer(data=data)
+            if serializer.is_valid():
+                favorite = serializer.save()
+                return Response({
+                    'success': True,
+                    'message': 'Added to favorites',
+                    'favorite_id': favorite.favorite_id,
+                    'data': serializer.data
+                }, status=status.HTTP_201_CREATED)
+            return Response({
+                'success': False,
+                'error': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete favorite with ownership check"""
+        try:
+            favorite = self.get_object()
+            
+            if favorite.user_id != request.user.user_id:
+                return Response({
+                    'success': False,
+                    'error': 'Permission denied'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            favorite.delete()
+            return Response({
+                'success': True,
+                'message': 'Removed from favorites'
+            }, status=status.HTTP_204_NO_CONTENT)
+        except Favorite.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': 'Favorite not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+    @action(detail=False, methods=['get'])
+    def my_favorites(self, request):
+        """Get all current user's favorites organized by type"""
+        try:
+            favorites = self.get_queryset()
+            
+            diamond_favs = []
+            setting_favs = []
+            config_favs = []
+
+            for fav in favorites:
+                fav_data = FavoriteSerializer(fav).data
+                if fav.diamond_id:
+                    diamond_favs.append({
+                        'favorite_id': fav.favorite_id,
+                        'diamond_id': fav.diamond_id,
+                        'diamond': fav_data.get('diamond')
+                    })
+                elif fav.setting_id:
+                    setting_favs.append({
+                        'favorite_id': fav.favorite_id,
+                        'setting_id': fav.setting_id,
+                        'setting': fav_data.get('setting')
+                    })
+                elif fav.config_id:
+                    config_favs.append({
+                        'favorite_id': fav.favorite_id,
+                        'config_id': fav.config_id,
+                        'config': fav_data.get('config')
+                    })
+
+            return Response({
+                'success': True,
+                'count': favorites.count(),
+                'diamonds': diamond_favs,
+                'settings': setting_favs,
+                'configurations': config_favs
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def add_diamond(self, request):
+        """Quick add diamond to favorites"""
+        try:
+            diamond_id = request.data.get('diamond_id')
+            
+            if not diamond_id:
+                return Response({
+                    'success': False,
+                    'error': 'diamond_id required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if already favorited
+            if Favorite.objects.filter(user=request.user, diamond_id=diamond_id).exists():
+                return Response({
+                    'success': False,
+                    'error': 'Already favorited'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            favorite = Favorite.objects.create(
+                user=request.user,
+                diamond_id=diamond_id,
+                created_at=timezone.now()
+            )
+
+            return Response({
+                'success': True,
+                'message': 'Added to favorites',
+                'favorite_id': favorite.favorite_id
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def add_setting(self, request):
+        """Quick add setting to favorites"""
+        try:
+            setting_id = request.data.get('setting_id')
+            
+            if not setting_id:
+                return Response({
+                    'success': False,
+                    'error': 'setting_id required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            if Favorite.objects.filter(user=request.user, setting_id=setting_id).exists():
+                return Response({
+                    'success': False,
+                    'error': 'Already favorited'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            favorite = Favorite.objects.create(
+                user=request.user,
+                setting_id=setting_id,
+                created_at=timezone.now()
+            )
+
+            return Response({
+                'success': True,
+                'message': 'Added to favorites',
+                'favorite_id': favorite.favorite_id
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def remove_diamond(self, request):
+        """Quick remove diamond from favorites"""
+        try:
+            diamond_id = request.data.get('diamond_id')
+            
+            if not diamond_id:
+                return Response({
+                    'success': False,
+                    'error': 'diamond_id required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            favorite = Favorite.objects.filter(
+                user=request.user,
+                diamond_id=diamond_id
+            ).first()
+
+            if not favorite:
+                return Response({
+                    'success': False,
+                    'error': 'Not in favorites'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            favorite.delete()
+            return Response({
+                'success': True,
+                'message': 'Removed from favorites'
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def remove_setting(self, request):
+        """Quick remove setting from favorites"""
+        try:
+            setting_id = request.data.get('setting_id')
+            
+            if not setting_id:
+                return Response({
+                    'success': False,
+                    'error': 'setting_id required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            favorite = Favorite.objects.filter(
+                user=request.user,
+                setting_id=setting_id
+            ).first()
+
+            if not favorite:
+                return Response({
+                    'success': False,
+                    'error': 'Not in favorites'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            favorite.delete()
+            return Response({
+                'success': True,
+                'message': 'Removed from favorites'
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def check_diamond(self, request):
+        """Check if diamond is favorited"""
+        try:
+            diamond_id = request.query_params.get('diamond_id')
+            
+            if not diamond_id:
+                return Response({
+                    'success': False,
+                    'error': 'diamond_id required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            is_favorited = Favorite.objects.filter(
+                user=request.user,
+                diamond_id=diamond_id
+            ).exists()
+
+            return Response({
+                'success': True,
+                'diamond_id': int(diamond_id),
+                'is_favorited': is_favorited
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['get'])
+    def check_setting(self, request):
+        """Check if setting is favorited"""
+        try:
+            setting_id = request.query_params.get('setting_id')
+            
+            if not setting_id:
+                return Response({
+                    'success': False,
+                    'error': 'setting_id required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            is_favorited = Favorite.objects.filter(
+                user=request.user,
+                setting_id=setting_id
+            ).exists()
+
+            return Response({
+                'success': True,
+                'setting_id': int(setting_id),
+                'is_favorited': is_favorited
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

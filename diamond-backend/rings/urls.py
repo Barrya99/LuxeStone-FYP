@@ -1,21 +1,15 @@
-# rings/urls.py
-
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from .auth_views import AuthViewSet
 from .views import (
-    UserViewSet,
-    DiamondViewSet,
-    SettingViewSet,
-    RingConfigurationViewSet,
-    FavoriteViewSet,
-    ReviewViewSet,
-    OrderViewSet,
-    UserInteractionViewSet,
-    PricingViewSet,
+    UserViewSet, DiamondViewSet, SettingViewSet,
+    RingConfigurationViewSet, FavoriteViewSet, ReviewViewSet,
+    OrderViewSet, UserInteractionViewSet, PricingViewSet,
     RecommendationViewSet
 )
 
 router = DefaultRouter()
+router.register(r'auth', AuthViewSet, basename='auth')
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'diamonds', DiamondViewSet, basename='diamond')
 router.register(r'settings', SettingViewSet, basename='setting')
