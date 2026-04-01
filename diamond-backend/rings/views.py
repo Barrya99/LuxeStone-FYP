@@ -337,17 +337,33 @@ class OrderViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        order = serializer.save(user=self.request.user)
- 
-        # Send confirmation email (non-blocking — failure won't break the request)
-        try:
-            from .email_service import send_order_confirmation
-            send_order_confirmation(order)
-        except Exception as exc:
+            from django.utils import timezone
             import logging
-            logging.getLogger(__name__).error(
-                "Email send failed for order %s: %s", order.order_number, exc
-            )
+            logger = logging.getLogger(__name__)
+
+            real_user = getattr(self.request.user, '_user', self.request.user)
+
+            try:
+                order = serializer.save(
+                    user=real_user,
+                    created_at=timezone.now(),
+                    updated_at=timezone.now(),
+                )
+            except Exception as exc:
+                logger.error("Order creation failed: %s", exc, exc_info=True)
+                raise  # re-raise so DRF returns proper 400/500
+
+            # Email is completely fire-and-forget — NEVER raises
+            try:
+                from .email_service import send_order_confirmation
+                send_order_confirmation(order)
+            except Exception as exc:
+                logger.error(
+                    "Confirmation email failed for order %s: %s",
+                    getattr(order, 'order_number', '?'), exc,
+                    exc_info=True,
+                )
+            # Order was already saved successfully — return normally regardless
 
     @action(detail=False, methods=['get'])
     def my_orders(self, request):
