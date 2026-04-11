@@ -9,6 +9,7 @@ import { useComparisonStore } from '../../store/useComparisonStore';
 import { useConfiguratorStore } from '../../store/useConfiguratorStore';
 import { useUserStore } from '../../store/useUserStore';
 import Button from '../common/Button';
+import ProductImage from '../common/ProductImage';
 import toast from 'react-hot-toast';
 
 const SettingCard = ({ setting }) => {
@@ -96,11 +97,13 @@ const SettingCard = ({ setting }) => {
     >
       {/* Image Container */}
       <div className="relative aspect-square bg-gradient-to-br from-amber-50 to-yellow-50 overflow-hidden">
-        {/* Setting Visual */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-32 h-32 bg-gradient-to-br from-yellow-300 via-amber-300 to-orange-300 rounded-full opacity-60 group-hover:scale-110 transition-transform duration-500 blur-sm" />
-          <div className="absolute w-20 h-20 bg-white rounded-full opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
-        </div>
+        {/* Product Image */}
+        <ProductImage 
+          src={setting.image_url || setting.thumbnail_url}
+          alt={`${setting.name} - ${setting.sku}`}
+          type="setting"
+          className="w-full h-full group-hover:scale-105 transition-transform duration-500"
+        />
 
         {/* Action Buttons */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">

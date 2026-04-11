@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .auth_views import AuthViewSet
+from .image_views import proxy_image
 from .views import (
     UserViewSet, DiamondViewSet, SettingViewSet,
     RingConfigurationViewSet, FavoriteViewSet, ReviewViewSet,
@@ -23,4 +24,6 @@ router.register(r'recommendations', RecommendationViewSet, basename='recommendat
 
 urlpatterns = [
     path('', include(router.urls)),
+    # Image proxy for external images (handles CORS/auth issues)
+    path('images/proxy/', proxy_image, name='image-proxy'),
 ]

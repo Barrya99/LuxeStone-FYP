@@ -3,6 +3,7 @@ import { Trash2, ShoppingBag, ArrowRight, ArrowLeft, Sparkles } from 'lucide-rea
 import { useCartStore } from '../store/useCartStore';
 import { formatPrice, formatCarat } from '../utils/formatters';
 import Button from '../components/common/Button';
+import ProductImage from '../components/common/ProductImage';
 import toast from 'react-hot-toast';
 
 const Cart = () => {
@@ -100,8 +101,13 @@ const Cart = () => {
                   <div className="flex gap-6">
                     
                     {/* Image */}
-                    <div className="flex-shrink-0 w-32 h-32 bg-gradient-to-br from-primary-100 to-blue-100 rounded-lg flex items-center justify-center">
-                      <Sparkles className="h-16 w-16 text-primary-400" />
+                    <div className="flex-shrink-0 w-32 h-32 bg-gradient-to-br from-primary-100 to-blue-100 rounded-lg overflow-hidden">
+                      <ProductImage 
+                        src={item.type === 'diamond' ? item.image_url : (item.type === 'complete_ring' ? item.diamond?.image_url : (item.image_url || item.thumbnail_url))}
+                        alt={item.type === 'complete_ring' ? 'Complete Ring' : (item.type === 'diamond' ? `${item.carat}ct ${item.shape}` : item.name)}
+                        type={item.type === 'diamond' ? 'diamond' : 'setting'}
+                        className="w-full h-full"
+                      />
                     </div>
 
                     {/* Details */}

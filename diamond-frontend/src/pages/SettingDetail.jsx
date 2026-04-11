@@ -10,6 +10,7 @@ import { useCartStore } from '../store/useCartStore';
 import { useConfiguratorStore } from '../store/useConfiguratorStore';
 import { useComparisonStore } from '../store/useComparisonStore';
 import Button from '../components/common/Button';
+import ProductImage from '../components/common/ProductImage';
 import Loading from '../components/common/Loading';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -140,9 +141,12 @@ const SettingDetail = () => {
           <div className="sticky top-24 self-start">
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
               <div className="relative aspect-square bg-gradient-to-br from-amber-50 to-yellow-50">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-64 h-64 bg-gradient-to-br from-yellow-300 via-amber-300 to-orange-300 rounded-full opacity-50 blur-md" />
-                </div>
+                <ProductImage 
+                  src={setting.image_url || setting.thumbnail_url}
+                  alt={`${setting.name} - ${setting.sku}`}
+                  type="setting"
+                  className="w-full h-full"
+                />
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, Search, X } from 'lucide-react';
 import { settingAPI } from '../services/api';
 import SettingCard from '../components/products/SettingCard';
 import Loading from '../components/common/Loading';
@@ -20,6 +20,7 @@ const BrowseSettings = () => {
     min_price: 0,
     max_price: 5000,
     ordering: '-popularity_score',
+    search: '', // Add search for SKU or product name
   });
 
   useEffect(() => {
@@ -69,6 +70,7 @@ const BrowseSettings = () => {
       min_price: 0,
       max_price: 5000,
       ordering: '-popularity_score',
+      search: '',
     });
     setCurrentPage(1);
   };
@@ -108,9 +110,45 @@ const BrowseSettings = () => {
             <h1 className="font-display text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
               Browse Ring Settings
             </h1>
-            <p className="text-gray-600">
+            <p className="text-gray-600 mb-4">
               Discover {totalCount} premium settings for your perfect ring
             </p>
+            
+            {/* Search Bar */}
+            <div className="relative">
+              <div className="flex gap-2">
+                <div className="flex-1 relative max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by SKU (e.g., SET-SOL-001)..."
+                    value={filters.search}
+                    onChange={(e) => {
+                      setFilters(prev => ({
+                        ...prev,
+                        search: e.target.value,
+                      }));
+                      setCurrentPage(1);
+                    }}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500"
+                  />
+                  {filters.search && (
+                    <button
+                      onClick={() => {
+                        setFilters(prev => ({
+                          ...prev,
+                          search: '',
+                        }));
+                        setCurrentPage(1);
+                      }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                    >
+                      <X className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

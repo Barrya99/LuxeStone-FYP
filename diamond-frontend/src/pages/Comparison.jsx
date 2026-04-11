@@ -18,6 +18,7 @@ import {
 import { useCartStore } from "../store/useCartStore";
 import { useComparisonStore } from "../store/useComparisonStore";
 import Button from "../components/common/Button";
+import ProductImage from "../components/common/ProductImage";
 import Loading from "../components/common/Loading";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -315,9 +316,14 @@ const Comparison = () => {
                         )}
 
                         {/* Item Preview */}
-                        <div className="bg-gradient-to-br from-primary-50 to-blue-50 rounded-lg p-4 mb-4">
+                        <div className="bg-gradient-to-br from-primary-50 to-blue-50 rounded-lg p-4 mb-4 overflow-hidden">
                           <div className="w-full h-32 flex items-center justify-center">
-                            <Sparkles className="h-16 w-16 text-primary-400" />
+                            <ProductImage 
+                              src={isDiamondComparison ? item.image_url : (item.image_url || item.thumbnail_url)}
+                              alt={isDiamondComparison ? `${item.carat}ct ${item.shape}` : item.name}
+                              type={isDiamondComparison ? 'diamond' : 'setting'}
+                              className="w-full h-full"
+                            />
                           </div>
                         </div>
 

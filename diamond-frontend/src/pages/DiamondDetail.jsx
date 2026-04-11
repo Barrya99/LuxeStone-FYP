@@ -13,6 +13,7 @@ import { useCartStore } from '../store/useCartStore';
 import { useConfiguratorStore } from '../store/useConfiguratorStore';
 import { useComparisonStore } from '../store/useComparisonStore';
 import Button from '../components/common/Button';
+import ProductImage from '../components/common/ProductImage';
 import Loading from '../components/common/Loading';
 import RecommendationsSection from '../components/recommendations/RecommendationsSection';
 import axios from 'axios';
@@ -184,9 +185,12 @@ const DiamondDetail = () => {
           <div className="sticky top-24 self-start">
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
               <div className="relative aspect-square bg-gradient-to-br from-gray-50 to-gray-100">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-64 h-64 bg-gradient-to-br from-blue-300 via-blue-200 to-cyan-200 rounded-full opacity-50 blur-md" />
-                </div>
+                <ProductImage 
+                  src={diamond.image_url}
+                  alt={`${diamond.carat}ct ${diamond.shape} - ${diamond.sku}`}
+                  type="diamond"
+                  className="w-full h-full"
+                />
               </div>
             </div>
           </div>

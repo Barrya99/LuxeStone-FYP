@@ -9,6 +9,7 @@ import { useUserStore } from '../store/useUserStore';
 import { orderAPI } from '../services/api';
 import { formatPrice, formatCarat } from '../utils/formatters';
 import Button from '../components/common/Button';
+import ProductImage from '../components/common/ProductImage';
 import toast from 'react-hot-toast';
 
 const ORDER_STATUS_MAP = {
@@ -271,8 +272,13 @@ const Account = () => {
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {favorites.map(item => (
                   <div key={item._id} className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-lg transition-all">
-                    <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                      <span className="text-5xl opacity-50">{item.type === 'diamond' ? '💎' : '👑'}</span>
+                    <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200">
+                      <ProductImage 
+                        src={item.type === 'diamond' ? item.image_url : (item.image_url || item.thumbnail_url)}
+                        alt={item.type === 'diamond' ? `${item.carat}ct ${item.shape}` : item.name}
+                        type={item.type === 'diamond' ? 'diamond' : 'setting'}
+                        className="w-full h-full"
+                      />
                     </div>
                     <div className="p-4 space-y-3">
                       <div>

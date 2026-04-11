@@ -11,6 +11,7 @@ import { useConfiguratorStore } from '../../store/useConfiguratorStore';
 import { useUserStore } from '../../store/useUserStore';
 import axios from 'axios';
 import Button from '../common/Button';
+import ProductImage from '../common/ProductImage';
 import toast from 'react-hot-toast';
 
 const DiamondCard = ({ diamond }) => {
@@ -131,11 +132,13 @@ const DiamondCard = ({ diamond }) => {
     >
       {/* Image Container */}
       <div className="relative aspect-square bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-        {/* Diamond Visual */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-32 h-32 bg-gradient-to-br from-blue-300 via-blue-200 to-cyan-200 rounded-full opacity-60 group-hover:scale-110 transition-transform duration-500 blur-sm" />
-          <div className="absolute w-24 h-24 bg-white rounded-full opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
-        </div>
+        {/* Product Image */}
+        <ProductImage 
+          src={diamond.image_url}
+          alt={`${diamond.carat}ct ${diamond.shape} - ${diamond.sku}`}
+          type="diamond"
+          className="w-full h-full group-hover:scale-105 transition-transform duration-500"
+        />
 
         {/* Action Buttons */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">

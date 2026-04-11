@@ -8,6 +8,7 @@ import { formatPrice, formatCarat } from '../../utils/formatters';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { useUserStore } from '../../store/useUserStore';
 import Button from '../common/Button';
+import ProductImage from '../common/ProductImage';
 import Loading from '../common/Loading';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -133,9 +134,12 @@ const FeaturedProducts = () => {
     >
       {/* Image */}
       <div className="relative aspect-square bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-32 h-32 bg-gradient-to-br from-blue-300 via-blue-200 to-cyan-200 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500 blur-sm" />
-        </div>
+        <ProductImage 
+          src={diamond.image_url}
+          alt={`${formatCarat(diamond.carat)} ${diamond.shape}`}
+          type="diamond"
+          className="w-full h-full"
+        />
 
         {/* Actions */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -202,9 +206,12 @@ const FeaturedProducts = () => {
     >
       {/* Image */}
       <div className="relative aspect-square bg-gradient-to-br from-amber-50 to-yellow-50 overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-32 h-32 bg-gradient-to-br from-yellow-300 via-amber-300 to-orange-300 rounded-full opacity-50 group-hover:scale-110 transition-transform duration-500 blur-sm" />
-        </div>
+        <ProductImage 
+          src={setting.image_url || setting.thumbnail_url}
+          alt={setting.name}
+          type="setting"
+          className="w-full h-full"
+        />
 
         {/* Actions */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">

@@ -5,6 +5,7 @@ import { Heart, Sparkles, ShoppingCart } from 'lucide-react';
 import { formatPrice, formatCarat } from '../../utils/formatters';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { useCartStore } from '../../store/useCartStore';
+import ProductImage from '../common/ProductImage';
 import toast from 'react-hot-toast';
 
 /**
@@ -66,8 +67,13 @@ const RecommendationCard = ({ item, type = 'diamond' }) => {
     >
       {/* Compact Image Section - 120x120px */}
       <div className="relative w-full h-24 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center overflow-hidden">
-        {/* Emoji Icon */}
-        <span className="text-3xl opacity-50">{type === 'diamond' ? '💎' : '👑'}</span>
+        {/* Product Image */}
+        <ProductImage 
+          src={type === 'diamond' ? item?.image_url : (item?.image_url || item?.thumbnail_url)}
+          alt={type === 'diamond' ? `${item?.carat}ct ${item?.shape}` : item?.name}
+          type={type}
+          className="w-full h-full"
+        />
 
         {/* Recommended Badge - Top Left */}
         <div className="absolute top-1.5 left-1.5">
