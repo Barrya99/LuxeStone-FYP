@@ -23,6 +23,9 @@ ALLOWED_IMAGE_DOMAINS = [
     'imgur.com',
     'cloudinary.com',
     'res.cloudinary.com',
+    'openai.com',
+    'cdn.shopify.com',
+    'shopify.com',
 ]
 
 # Cache images for 24 hours (86400 seconds)
@@ -84,8 +87,11 @@ def fetch_external_image(image_url: str, timeout: int = 10) -> dict:
         logger.info(f"[image_proxy] Fetching image: {image_url[:80]}...")
         
         # Fetch with User-Agent to avoid being blocked as bot
+        # Use a realistic browser User-Agent
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'image/*',
+            'Referer': 'https://openai.com/',
         }
         
         response = requests.get(
@@ -94,6 +100,7 @@ def fetch_external_image(image_url: str, timeout: int = 10) -> dict:
             headers=headers,
             allow_redirects=True,
             stream=True,
+            verify=True,
         )
         
         # Check status
@@ -162,13 +169,18 @@ def proxy_image_response(image_url: str) -> HttpResponse:
     result = fetch_external_image(image_url)
     
     if not result['success']:
-        logger.warning(f"[proxy_image_response] Failed: {result.get('error')}")
-        # Return 404 to frontend (image not available)
-        return HttpResponse(
-            b'Image not available',
+        error_msg = result.get('error', 'Unknown error')
+        logger.warning(f"[proxy_image_response] Failed: {error_msg}")
+        # Return error response with debug info
+        error_response = HttpResponse(
+            f'Error: {error_msg}'.encode('utf-8'),
             status=result.get('status_code', 500),
             content_type='text/plain',
         )
+        # Ensure CORS headers are set even on error
+        error_response['Access-Control-Allow-Origin'] = '*'
+        error_response['X-Error-Message'] = error_msg
+        return error_response
     
     # Stream image to client
     response = HttpResponse(
@@ -179,5 +191,9 @@ def proxy_image_response(image_url: str) -> HttpResponse:
     # Set cache headers (24 hours)
     response['Cache-Control'] = 'public, max-age=86400'
     response['X-Image-Cached'] = 'true' if result.get('cached') else 'false'
+    
+    # Ensure CORS headers for image response
+    response['Access-Control-Allow-Origin'] = '*'
+    response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
     
     return response

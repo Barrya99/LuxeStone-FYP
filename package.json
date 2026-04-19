@@ -1,0 +1,17 @@
+{
+  "name": "jewelry-website",
+  "version": "1.0.0",
+  "description": "Jewelry Website - Full Stack Project",
+  "private": true,
+  "scripts": {
+    "install-all": "npm install && cd diamond-backend && pip install -r requirements.txt && cd ../diamond-frontend && npm install",
+    "start": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd diamond-backend && python manage.py runserver",
+    "frontend": "cd diamond-frontend && npm run dev",
+    "backend-only": "cd diamond-backend && python manage.py runserver",
+    "frontend-only": "cd diamond-frontend && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

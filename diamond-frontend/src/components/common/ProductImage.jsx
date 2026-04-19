@@ -35,7 +35,15 @@ const ProductImage = ({
     
     const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
     const encodedUrl = encodeURIComponent(url);
-    return `${API_BASE_URL}/images/proxy/?url=${encodedUrl}`;
+    const proxiedUrl = `${API_BASE_URL}/images/proxy/?url=${encodedUrl}`;
+    
+    console.log(`[ProductImage] Proxying external URL:`, {
+      original: url,
+      apiBase: API_BASE_URL,
+      proxied: proxiedUrl
+    });
+    
+    return proxiedUrl;
   };
 
   const handleLoad = () => {
@@ -44,6 +52,19 @@ const ProductImage = ({
 
   const handleError = (e) => {
     console.warn(`[ProductImage] Failed to load image: ${src}`);
+    console.warn(`[ProductImage] Proxied URL attempted: ${finalImageUrl}`);
+    console.error(`[ProductImage] Error details:`, e);
+    
+    // Try to fetch error details from the proxy response
+    if (finalImageUrl && isExternalUrl(src)) {
+      fetch(finalImageUrl)
+        .then(res => res.text())
+        .then(text => {
+          console.error(`[ProductImage] Backend error: ${text}`);
+        })
+        .catch(err => console.error('[ProductImage] Could not fetch error details:', err));
+    }
+    
     setImageState('error');
     setError(e);
   };

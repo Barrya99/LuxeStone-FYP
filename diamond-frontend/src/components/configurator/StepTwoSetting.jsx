@@ -6,6 +6,7 @@ import { settingAPI } from '../../services/api';
 import { formatPrice } from '../../utils/formatters';
 import Loading from '../common/Loading';
 import Button from '../common/Button';
+import ProductImage from '../common/ProductImage';
 import toast from 'react-hot-toast';
 
 const StepTwoSetting = ({ selectedDiamond, onSelectSetting, selectedSetting }) => {
@@ -51,6 +52,8 @@ const StepTwoSetting = ({ selectedDiamond, onSelectSetting, selectedSetting }) =
         });
       }
       
+      console.log('[StepTwoSetting] Fetched settings:', filteredSettings);
+      console.log('[StepTwoSetting] First setting image URL:', filteredSettings[0]?.image_url);
       setSettings(filteredSettings);
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -180,20 +183,13 @@ const StepTwoSetting = ({ selectedDiamond, onSelectSetting, selectedSetting }) =
                     className="relative aspect-square bg-gradient-to-br overflow-hidden"
                     style={{backgroundImage: `linear-gradient(to bottom right, ${getMetalColor(setting.metal_type)})`}}
                   >
-                    {/* Setting Visual */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      {/* Ring Setting Representation */}
-                      <div className="relative">
-                        {/* Band */}
-                        <div className={`w-32 h-32 bg-gradient-to-br ${getMetalColor(setting.metal_type)} rounded-full opacity-70 group-hover:scale-110 transition-transform duration-500 blur-sm`} />
-                        
-                        {/* Center stone placeholder */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-12 h-12 bg-white rounded-full opacity-40 group-hover:opacity-60 transition-opacity duration-500 shadow-lg" />
-                          <div className="absolute w-8 h-8 bg-blue-300 rounded-full opacity-30" />
-                        </div>
-                      </div>
-                    </div>
+                    {/* Product Image - Shows actual setting photos */}
+                    <ProductImage 
+                      src={setting.image_url || setting.thumbnail_url}
+                      alt={`${setting.name} - ${setting.sku}`}
+                      type="setting"
+                      className="w-full h-full group-hover:scale-105 transition-transform duration-500"
+                    />
 
                     {/* Selected Checkmark */}
                     {isSelected && (

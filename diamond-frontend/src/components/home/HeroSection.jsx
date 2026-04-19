@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Sparkles, ArrowRight, Shield, Award, Leaf } from 'lucide-react';
 import Button from '../common/Button';
+import ProductImage from '../common/ProductImage';
 
 const HeroSection = () => {
   const features = [
@@ -78,14 +79,13 @@ const HeroSection = () => {
             <div className="relative group">
               <div className="absolute inset-0 bg-gradient-to-tr from-primary-400 to-blue-400 rounded-3xl blur-2xl opacity-20 group-hover:opacity-30 transition-opacity" />
               <div className="relative bg-white rounded-3xl shadow-2xl p-8 transform group-hover:scale-105 transition-transform duration-500">
-                {/* Placeholder for ring image */}
-                <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
-                  <div className="text-center">
-                    <Sparkles className="h-24 w-24 text-primary-400 mx-auto mb-4 animate-pulse" />
-                    <p className="text-gray-500 font-medium">Featured Ring</p>
-                    <p className="text-sm text-gray-400">1.5ct Round Brilliant</p>
-                  </div>
-                </div>
+                {/* Hero Ring Image */}
+                <ProductImage 
+                  src="https://cdn.shopify.com/s/files/1/0460/0263/4904/files/Lab_grown_vs._natural_diamonds.jpg?v=1664446522"
+                  alt="Featured Ring - Lab Grown Diamond"
+                  type="setting"
+                  className="aspect-square rounded-2xl"
+                />
               </div>
             </div>
 

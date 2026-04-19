@@ -9,6 +9,7 @@ import { useCartStore } from '../../store/useCartStore';
 import { useFavoritesStore } from '../../store/useFavoritesStore';
 import { useNavigate } from 'react-router-dom';
 import Button from '../common/Button';
+import ProductImage from '../common/ProductImage';
 import PriceBreakdown from './PriceBreakdown';
 import HandModelViewer from '../../features/handModel/HandModelViewer';
 import axios from 'axios';
@@ -109,33 +110,52 @@ const StepThreeCustomize = ({ selectedDiamond, selectedSetting, onBack }) => {
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
             {/* Visual preview area */}
             <div className="relative aspect-square bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-              {/* Simple ring visual */}
-              <div className="flex flex-col items-center gap-4">
-                <div className="relative">
-                  {/* Ring band */}
-                  <div
-                    className="w-28 h-28 rounded-full border-8 flex items-center justify-center"
-                    style={{
-                      borderColor: selectedSetting?.metal_type?.includes('Yellow') ? '#D4A520'
-                        : selectedSetting?.metal_type?.includes('Rose') ? '#C8837A'
-                        : '#D0D0D0',
-                      background: 'transparent',
-                      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                    }}
-                  >
-                    {/* Diamond in center */}
-                    <div className="w-12 h-14 bg-gradient-to-br from-white via-blue-100 to-blue-200 rounded-sm transform rotate-45 shadow-inner" />
+              {/* Diamond Image */}
+              {selectedDiamond?.image_url ? (
+                <div className="w-full h-full flex flex-col items-center justify-center p-8">
+                  <ProductImage
+                    src={selectedDiamond.image_url}
+                    alt={`${selectedDiamond.shape} Diamond - ${formatCarat(selectedDiamond.carat)}ct`}
+                    type="diamond"
+                    className="w-full h-4/5 object-contain"
+                  />
+                  <div className="text-center mt-4">
+                    <p className="text-sm font-semibold text-gray-700">
+                      {formatCarat(selectedDiamond?.carat)} {selectedDiamond?.shape}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {selectedSetting?.name}
+                    </p>
                   </div>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm font-semibold text-gray-700">
-                    {formatCarat(selectedDiamond?.carat)} {selectedDiamond?.shape}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {selectedSetting?.name}
-                  </p>
+              ) : (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="relative">
+                    {/* Ring band */}
+                    <div
+                      className="w-28 h-28 rounded-full border-8 flex items-center justify-center"
+                      style={{
+                        borderColor: selectedSetting?.metal_type?.includes('Yellow') ? '#D4A520'
+                          : selectedSetting?.metal_type?.includes('Rose') ? '#C8837A'
+                          : '#D0D0D0',
+                        background: 'transparent',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                      }}
+                    >
+                      {/* Diamond in center */}
+                      <div className="w-12 h-14 bg-gradient-to-br from-white via-blue-100 to-blue-200 rounded-sm transform rotate-45 shadow-inner" />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-700">
+                      {formatCarat(selectedDiamond?.carat)} {selectedDiamond?.shape}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {selectedSetting?.name}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Try On button overlay */}
               <button

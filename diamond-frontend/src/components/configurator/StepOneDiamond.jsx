@@ -7,6 +7,7 @@ import { formatPrice, formatCarat } from '../../utils/formatters';
 import axios from 'axios';
 import Loading from '../common/Loading';
 import Button from '../common/Button';
+import ProductImage from '../common/ProductImage';
 import toast from 'react-hot-toast';
 
 const StepOneDiamond = ({ onSelectDiamond, selectedDiamond }) => {
@@ -260,12 +261,13 @@ const StepOneDiamond = ({ onSelectDiamond, selectedDiamond }) => {
                   <div className="relative aspect-square bg-gradient-to-br overflow-hidden" 
                        style={{backgroundImage: `linear-gradient(to bottom right, ${getShapeColor(diamond.shape)})`}}>
                     
-                    {/* Diamond Visual */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className={`w-32 h-32 bg-gradient-to-br ${getShapeColor(diamond.shape)} rounded-full opacity-60 group-hover:scale-110 transition-transform duration-500 blur-sm`} />
-                      <div className="absolute w-24 h-24 bg-white rounded-full opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
-                      <div className="absolute w-16 h-16 bg-white rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-500" />
-                    </div>
+                    {/* Product Image - Shows actual diamond photos */}
+                    <ProductImage 
+                      src={diamond.image_url}
+                      alt={`${diamond.carat}ct ${diamond.shape} - ${diamond.sku}`}
+                      type="diamond"
+                      className="w-full h-full group-hover:scale-105 transition-transform duration-500"
+                    />
 
                     {/* Selected Checkmark */}
                     {isSelected && (
